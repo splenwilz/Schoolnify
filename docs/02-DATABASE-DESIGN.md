@@ -1403,3 +1403,4 @@ INSERT INTO permission (id, name, display_name, category) VALUES
 
 *Document maintained by: Schoolnify Development Team*
 
+
