@@ -14,6 +14,7 @@ import { CalendarGrid } from "./_components/calendar-grid";
 import { EventList } from "./_components/event-list";
 import { EventModal } from "./_components/event-modal";
 import { EventTable } from "./_components/event-table";
+import { PtcSchedule } from "./_components/ptc-schedule";
 
 type EventCategory = "academic" | "sports" | "cultural" | "meeting" | "holiday";
 
@@ -241,6 +242,11 @@ export default function CalendarPage() {
         onEdit={handleEditEvent}
         onDelete={handleDeleteEvent}
       />
+
+      {/* PTC Section */}
+      <div className="mt-6">
+        <PtcSchedule />
+      </div>
 
       {/* Event Modal */}
       <EventModal

@@ -8,17 +8,23 @@ import {
   timetableSlots,
   promotionRules,
   classes,
+  curriculumItems,
+  roomAllocations,
 } from "@/lib/demo-data";
 import { TermsTab } from "./_components/terms-tab";
 import { SubjectsTab } from "./_components/subjects-tab";
 import { TimetableTab } from "./_components/timetable-tab";
 import { PromotionsTab } from "./_components/promotions-tab";
+import { CurriculumTab } from "./_components/curriculum-tab";
+import { RoomsTab } from "./_components/rooms-tab";
 
 const tabs = [
   { id: "terms", label: "Terms & Sessions" },
   { id: "subjects", label: "Subjects" },
   { id: "timetable", label: "Timetable" },
   { id: "promotions", label: "Promotions" },
+  { id: "curriculum", label: "Curriculum" },
+  { id: "rooms", label: "Rooms" },
 ];
 
 export default function AcademicsPage() {
@@ -283,6 +289,12 @@ export default function AcademicsPage() {
           )}
           {activeTab === "promotions" && (
             <PromotionsTab rules={promotionRules} />
+          )}
+          {activeTab === "curriculum" && (
+            <CurriculumTab items={curriculumItems} />
+          )}
+          {activeTab === "rooms" && (
+            <RoomsTab allocations={roomAllocations} />
           )}
         </div>
       </section>

@@ -52,6 +52,8 @@ interface ApplicationTableProps {
   onGradeChange: (grade: string) => void;
   onApplicationStatusChange?: (appId: string, newStatus: string) => void;
   onReview?: (application: Application) => void;
+  selectedIds?: Set<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
 }
 
 const statusTabs = [
@@ -101,6 +103,8 @@ export function ApplicationTable({
   onGradeChange,
   onApplicationStatusChange,
   onReview,
+  selectedIds,
+  onSelectionChange,
 }: ApplicationTableProps) {
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);
@@ -141,6 +145,48 @@ export function ApplicationTable({
     }
     return true;
   });
+
+  const hasSelection = selectedIds !== undefined && onSelectionChange !== undefined;
+
+  const allFilteredSelected =
+    hasSelection &&
+    filteredApplications.length > 0 &&
+    filteredApplications.every((app) => selectedIds.has(app.id));
+
+  const someFilteredSelected =
+    hasSelection &&
+    !allFilteredSelected &&
+    filteredApplications.some((app) => selectedIds.has(app.id));
+
+  const handleSelectAll = () => {
+    if (!hasSelection) return;
+    if (allFilteredSelected) {
+      // Deselect all filtered
+      const next = new Set(selectedIds);
+      for (const app of filteredApplications) {
+        next.delete(app.id);
+      }
+      onSelectionChange(next);
+    } else {
+      // Select all filtered
+      const next = new Set(selectedIds);
+      for (const app of filteredApplications) {
+        next.add(app.id);
+      }
+      onSelectionChange(next);
+    }
+  };
+
+  const handleToggleRow = (appId: string) => {
+    if (!hasSelection) return;
+    const next = new Set(selectedIds);
+    if (next.has(appId)) {
+      next.delete(appId);
+    } else {
+      next.add(appId);
+    }
+    onSelectionChange(next);
+  };
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
@@ -229,7 +275,23 @@ export function ApplicationTable({
         <table className="w-full">
           <thead>
             <tr className="border-t border-[var(--border)]">
-              <th className="px-5 py-3 text-left text-[11px] font-semibold text-[var(--muted)] uppercase tracking-wider">
+              {hasSelection && (
+                <th className="pl-5 pr-2 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = !!someFilteredSelected;
+                    }}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 rounded border-[var(--border)] text-[#0891B2] focus:ring-[#0891B2] cursor-pointer accent-[#0891B2]"
+                  />
+                </th>
+              )}
+              <th className={cn(
+                "py-3 text-left text-[11px] font-semibold text-[var(--muted)] uppercase tracking-wider",
+                hasSelection ? "px-2" : "px-5"
+              )}>
                 Student
               </th>
               <th className="px-4 py-3 text-left text-[11px] font-semibold text-[var(--muted)] uppercase tracking-wider">
@@ -250,7 +312,7 @@ export function ApplicationTable({
           <tbody>
             {filteredApplications.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-5 py-12 text-center">
+                <td colSpan={hasSelection ? 7 : 6} className="px-5 py-12 text-center">
                   <p className="text-sm text-[var(--muted)]">
                     No applications found.
                   </p>
@@ -272,10 +334,25 @@ export function ApplicationTable({
                 return (
                   <tr
                     key={app.id}
-                    className="group border-t border-[var(--border)] hover:bg-[var(--background-secondary)]/40 transition-colors"
+                    className={cn(
+                      "group border-t border-[var(--border)] hover:bg-[var(--background-secondary)]/40 transition-colors",
+                      hasSelection && selectedIds.has(app.id) && "bg-[#0891B2]/5"
+                    )}
                   >
+                    {/* Checkbox */}
+                    {hasSelection && (
+                      <td className="pl-5 pr-2 py-3.5">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(app.id)}
+                          onChange={() => handleToggleRow(app.id)}
+                          className="w-4 h-4 rounded border-[var(--border)] text-[#0891B2] focus:ring-[#0891B2] cursor-pointer accent-[#0891B2]"
+                        />
+                      </td>
+                    )}
+
                     {/* Student */}
-                    <td className="px-5 py-3.5">
+                    <td className={cn("py-3.5", hasSelection ? "px-2" : "px-5")}>
                       <button
                         onClick={() => onReview?.(app)}
                         className="text-left"

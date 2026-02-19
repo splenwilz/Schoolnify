@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import { staff } from "@/lib/demo-data";
 import { ProfileHeader } from "./_components/profile-header";
-import { BentoDetail } from "./_components/bento-detail";
+import { StaffDetailTabs } from "./_components/staff-detail-tabs";
 
 export default function StaffDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -42,7 +42,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
       className="max-w-[1200px] mx-auto"
     >
       <ProfileHeader staff={staffMember} />
-      <BentoDetail staff={staffMember} />
+      <StaffDetailTabs staff={staffMember} />
     </motion.div>
   );
 }

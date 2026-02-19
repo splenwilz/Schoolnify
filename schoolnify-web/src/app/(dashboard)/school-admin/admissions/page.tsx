@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Plus, FileDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { admissionApplications } from "@/lib/demo-data";
 import { AdmissionsOverviewCard } from "./_components/admissions-overview-card";
 import { AdmissionsMiniStats } from "./_components/admissions-mini-stats";
@@ -11,6 +12,9 @@ import { ApplicationTable } from "./_components/application-table";
 import { ApplicationModal } from "./_components/application-modal";
 import { ApplicationDetail } from "./_components/application-detail";
 import { EnrollmentModal } from "./_components/enrollment-modal";
+import { WaitlistTab } from "./_components/waitlist-tab";
+import { AnalyticsTab } from "./_components/analytics-tab";
+import { BulkActionsBar } from "./_components/bulk-actions-bar";
 
 interface Application {
   id: string;
@@ -43,6 +47,14 @@ const statusLabels: Record<string, string> = {
   waitlisted: "Waitlisted",
 };
 
+const mainTabs = [
+  { id: "applications", label: "Applications" },
+  { id: "waitlist", label: "Waitlist" },
+  { id: "analytics", label: "Analytics" },
+] as const;
+
+type MainTab = (typeof mainTabs)[number]["id"];
+
 export default function AdmissionsPage() {
   const [localApplications, setLocalApplications] = useState<Application[]>(
     admissionApplications as Application[]
@@ -53,6 +65,8 @@ export default function AdmissionsPage() {
   const [showModal, setShowModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [enrollingApplication, setEnrollingApplication] = useState<Application | null>(null);
+  const [activeTab, setActiveTab] = useState<MainTab>("applications");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const stats = useMemo(() => {
     const total = localApplications.length;
@@ -211,6 +225,50 @@ export default function AdmissionsPage() {
     setEnrollingApplication(null);
   };
 
+  // Bulk action handlers
+  const handleBulkAccept = () => {
+    for (const id of selectedIds) {
+      handleStatusChange(id, "accepted");
+    }
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkReject = () => {
+    for (const id of selectedIds) {
+      handleStatusChange(id, "rejected");
+    }
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkExport = () => {
+    // Mock: In production this would trigger a CSV/PDF download
+    const selected = localApplications.filter((a) => selectedIds.has(a.id));
+    const csv = [
+      "Name,Email,Grade,Status,Applied Date",
+      ...selected.map(
+        (a) => `${a.studentName},${a.email},${a.grade},${a.status},${a.appliedDate}`
+      ),
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "selected-applications.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBulkEmail = () => {
+    // Mock: In production this would open an email composer
+    const selected = localApplications.filter((a) => selectedIds.has(a.id));
+    const emails = selected.map((a) => a.email || a.parentEmail).join(",");
+    window.open(`mailto:${emails}`);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -264,20 +322,56 @@ export default function AdmissionsPage() {
         </div>
       </div>
 
-      {/* Application Table */}
-      <div>
-        <ApplicationTable
-          applications={localApplications}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          statusFilter={statusFilter}
-          onStatusChange={setStatusFilter}
-          gradeFilter={gradeFilter}
-          onGradeChange={setGradeFilter}
-          onApplicationStatusChange={handleStatusChange}
-          onReview={handleReview}
-        />
+      {/* Main Tabs */}
+      <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[var(--background-secondary)] mb-4 w-fit">
+        {mainTabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "px-4 py-2 text-[13px] font-medium rounded-md transition-all",
+              activeTab === tab.id
+                ? "bg-[var(--card)] text-[var(--foreground)] shadow-sm"
+                : "text-[var(--muted)] hover:text-[var(--foreground)]"
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
+
+      {/* Tab Content */}
+      {activeTab === "applications" && (
+        <div>
+          <ApplicationTable
+            applications={localApplications}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            statusFilter={statusFilter}
+            onStatusChange={setStatusFilter}
+            gradeFilter={gradeFilter}
+            onGradeChange={setGradeFilter}
+            onApplicationStatusChange={handleStatusChange}
+            onReview={handleReview}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+          />
+        </div>
+      )}
+
+      {activeTab === "waitlist" && <WaitlistTab />}
+
+      {activeTab === "analytics" && <AnalyticsTab />}
+
+      {/* Bulk Actions Bar */}
+      <BulkActionsBar
+        selectedCount={selectedIds.size}
+        onAcceptAll={handleBulkAccept}
+        onRejectAll={handleBulkReject}
+        onExport={handleBulkExport}
+        onEmail={handleBulkEmail}
+        onClear={handleClearSelection}
+      />
 
       {/* Log Inquiry Modal */}
       <ApplicationModal

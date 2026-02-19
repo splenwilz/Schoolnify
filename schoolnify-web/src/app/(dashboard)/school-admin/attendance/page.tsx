@@ -10,7 +10,10 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { classAttendanceRecords, todayAttendance, attendanceData } from "@/lib/demo-data";
+import { classAttendanceRecords, todayAttendance, attendanceData, periodAttendance, chronicAbsentees, studentLeaveRequests } from "@/lib/demo-data";
+import PeriodAttendanceTab from "./_components/period-attendance-tab";
+import AbsenteeismTab from "./_components/absenteeism-tab";
+import LeaveRequestsTab from "./_components/leave-requests-tab";
 
 type AttendanceRecord = (typeof classAttendanceRecords)[number];
 type ModifiedRecord = AttendanceRecord & { status: "completed" | "pending" };
@@ -33,6 +36,15 @@ const weeklyData = {
 };
 
 const chartPeriods = Object.keys(weeklyData) as (keyof typeof weeklyData)[];
+
+type ViewTab = "daily" | "period" | "absenteeism" | "leave";
+
+const viewTabs: { id: ViewTab; label: string }[] = [
+  { id: "daily", label: "Daily" },
+  { id: "period", label: "Period-wise" },
+  { id: "absenteeism", label: "Absenteeism" },
+  { id: "leave", label: "Leave Requests" },
+];
 
 function buildCurvePath(
   data: number[],
@@ -73,6 +85,7 @@ export default function AttendancePage() {
   const [chartPeriod, setChartPeriod] = useState<keyof typeof weeklyData>("This Week");
   const [markedRecords, setMarkedRecords] = useState<Record<string, ModifiedRecord>>({});
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<ViewTab>("daily");
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -433,261 +446,293 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Filters Row */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
-        <div className="relative flex-1 max-w-sm">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search classes..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm bg-[var(--card)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:border-[#0891B2]"
-          />
-        </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 text-sm bg-[var(--card)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[#0891B2]"
-        >
-          <option value="">All status</option>
-          <option value="completed">Completed</option>
-          <option value="pending">Pending</option>
-        </select>
+      {/* View Tabs */}
+      <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[var(--background-secondary)] w-fit mb-6">
+        {viewTabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveView(tab.id)}
+            className={cn(
+              "px-4 py-1.5 text-[12px] font-medium rounded-md transition-all whitespace-nowrap",
+              activeView === tab.id
+                ? "bg-[var(--card)] text-[var(--foreground)] shadow-sm"
+                : "text-[var(--muted)] hover:text-[var(--foreground)]"
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Class Attendance Table */}
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
-              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-                Class
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-                Teacher
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-                Present
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-                Absent
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-                Late
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-                Rate
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-                Marked At
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-                
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--border)]">
-            {filteredRecords.map(record => (
-              <tr 
-                key={record.id}
-                className="hover:bg-[var(--background-secondary)] transition-colors"
-              >
-                <td className="px-4 py-3">
-                  <Link href={`/school-admin/attendance/${record.id}`} className="text-sm font-medium text-[var(--foreground)] hover:text-[#0891B2] transition-colors">
-                    {record.className}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">
-                  <span className="text-sm text-[var(--foreground-secondary)]">{record.teacher}</span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                    record.status === "completed"
-                      ? "bg-[#10B981]/10 text-[#10B981]"
-                      : "bg-[#F59E0B]/10 text-[#F59E0B]"
-                  }`}>
-                    {record.status === "completed" && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] mr-1.5" />
-                    )}
-                    {record.status === "completed" ? "Completed" : "Pending"}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className="text-sm font-mono text-[#10B981]">
-                    {record.status === "completed" ? record.present : "—"}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className="text-sm font-mono text-[#EF4444]">
-                    {record.status === "completed" ? record.absent : "—"}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className="text-sm font-mono text-[#F59E0B]">
-                    {record.status === "completed" ? record.late : "—"}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  {record.status === "completed" ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-12 h-1.5 rounded-full bg-[var(--background-secondary)] overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full ${
-                            record.rate >= 95 ? "bg-[#10B981]" :
-                            record.rate >= 85 ? "bg-[#F59E0B]" : "bg-[#EF4444]"
-                          }`}
-                          style={{ width: `${record.rate}%` }}
-                        />
-                      </div>
-                      <span className="text-xs font-mono text-[var(--muted)]">{record.rate}%</span>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-[var(--muted)]">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <span className="text-sm text-[var(--muted)]">
-                    {record.markedAt || "—"}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  {record.status === "pending" ? (
-                    <button
-                      onClick={() => handleMarkNow(record)}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-[#0891B2] rounded-md hover:bg-[#0E7490] transition-colors"
-                    >
-                      Mark Now
-                    </button>
-                  ) : (
-                    <div className="relative" ref={openMenuId === record.id ? menuRef : undefined}>
-                      <button
-                        onClick={() => setOpenMenuId(openMenuId === record.id ? null : record.id)}
-                        className="p-1.5 rounded-md hover:bg-[var(--background-secondary)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
-                        </svg>
-                      </button>
-                      <AnimatePresence>
-                        {openMenuId === record.id && (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                            transition={{ duration: 0.15 }}
-                            className="absolute right-0 top-full mt-1 w-44 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-lg z-50 overflow-hidden"
-                          >
-                            <Link
-                              href={`/school-admin/attendance/${record.id}`}
-                              onClick={() => setOpenMenuId(null)}
-                              className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
-                            >
-                              <svg className="w-3.5 h-3.5 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                              </svg>
-                              View Details
-                            </Link>
-                            <button
-                              onClick={() => {
-                                setOpenMenuId(null);
-                                // Reset to pending so they can re-mark
-                                setMarkedRecords((prev) => {
-                                  const next = { ...prev };
-                                  // Find original record
-                                  const original = classAttendanceRecords.find((r) => r.id === record.id);
-                                  if (original && original.status === "pending") {
-                                    // Was originally pending — reset the override
-                                    delete next[record.id];
-                                  }
-                                  return next;
-                                });
-                              }}
-                              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
-                            >
-                              <svg className="w-3.5 h-3.5 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                              </svg>
-                              Edit Attendance
-                            </button>
-                            <div className="border-t border-[var(--border)]" />
-                            <button
-                              onClick={() => {
-                                setOpenMenuId(null);
-                                // Simulate download
-                                const blob = new Blob(
-                                  [`${record.className} Attendance Report\nDate: ${record.date}\nPresent: ${record.present}\nAbsent: ${record.absent}\nLate: ${record.late}\nRate: ${record.rate}%\nTeacher: ${record.teacher}\nMarked At: ${record.markedAt}`],
-                                  { type: "text/plain" }
-                                );
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement("a");
-                                a.href = url;
-                                a.download = `${record.className.replace(/\s+/g, "-").toLowerCase()}-attendance.txt`;
-                                a.click();
-                                URL.revokeObjectURL(url);
-                              }}
-                              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
-                            >
-                              <svg className="w-3.5 h-3.5 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                              </svg>
-                              Download Report
-                            </button>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* Empty State */}
-        {filteredRecords.length === 0 && (
-          <div className="py-12 text-center">
-            <svg className="w-12 h-12 mx-auto text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-            </svg>
-            <h3 className="mt-4 text-sm font-medium text-[var(--foreground)]">No records found</h3>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Try adjusting your search or filter criteria
-            </p>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {filteredRecords.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border)]">
-            <p className="text-sm text-[var(--muted)]">
-              Showing <span className="font-medium text-[var(--foreground)]">1</span> to{" "}
-              <span className="font-medium text-[var(--foreground)]">{filteredRecords.length}</span> of{" "}
-              <span className="font-medium text-[var(--foreground)]">{filteredRecords.length}</span> classes
-            </p>
-            <div className="flex items-center gap-1">
-              <button 
-                disabled
-                className="px-3 py-1.5 text-sm text-[var(--muted)] bg-[var(--card)] border border-[var(--border)] rounded-md disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button 
-                disabled
-                className="px-3 py-1.5 text-sm text-[var(--muted)] bg-[var(--card)] border border-[var(--border)] rounded-md disabled:opacity-50"
-              >
-                Next
-              </button>
+      {/* Daily View */}
+      {activeView === "daily" && (
+        <>
+          {/* Filters Row */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+            <div className="relative flex-1 max-w-sm">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search classes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 text-sm bg-[var(--card)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:border-[#0891B2]"
+              />
             </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 text-sm bg-[var(--card)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[#0891B2]"
+            >
+              <option value="">All status</option>
+              <option value="completed">Completed</option>
+              <option value="pending">Pending</option>
+            </select>
           </div>
-        )}
-      </div>
+
+          {/* Class Attendance Table */}
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+                    Class
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+                    Teacher
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+                    Present
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+                    Absent
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+                    Late
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+                    Rate
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+                    Marked At
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)]">
+                {filteredRecords.map(record => (
+                  <tr
+                    key={record.id}
+                    className="hover:bg-[var(--background-secondary)] transition-colors"
+                  >
+                    <td className="px-4 py-3">
+                      <Link href={`/school-admin/attendance/${record.id}`} className="text-sm font-medium text-[var(--foreground)] hover:text-[#0891B2] transition-colors">
+                        {record.className}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-[var(--foreground-secondary)]">{record.teacher}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
+                        record.status === "completed"
+                          ? "bg-[#10B981]/10 text-[#10B981]"
+                          : "bg-[#F59E0B]/10 text-[#F59E0B]"
+                      }`}>
+                        {record.status === "completed" && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] mr-1.5" />
+                        )}
+                        {record.status === "completed" ? "Completed" : "Pending"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm font-mono text-[#10B981]">
+                        {record.status === "completed" ? record.present : "\u2014"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm font-mono text-[#EF4444]">
+                        {record.status === "completed" ? record.absent : "\u2014"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm font-mono text-[#F59E0B]">
+                        {record.status === "completed" ? record.late : "\u2014"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {record.status === "completed" ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-12 h-1.5 rounded-full bg-[var(--background-secondary)] overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${
+                                record.rate >= 95 ? "bg-[#10B981]" :
+                                record.rate >= 85 ? "bg-[#F59E0B]" : "bg-[#EF4444]"
+                              }`}
+                              style={{ width: `${record.rate}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-mono text-[var(--muted)]">{record.rate}%</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-[var(--muted)]">{"\u2014"}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-[var(--muted)]">
+                        {record.markedAt || "\u2014"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {record.status === "pending" ? (
+                        <button
+                          onClick={() => handleMarkNow(record)}
+                          className="px-3 py-1.5 text-xs font-medium text-white bg-[#0891B2] rounded-md hover:bg-[#0E7490] transition-colors"
+                        >
+                          Mark Now
+                        </button>
+                      ) : (
+                        <div className="relative" ref={openMenuId === record.id ? menuRef : undefined}>
+                          <button
+                            onClick={() => setOpenMenuId(openMenuId === record.id ? null : record.id)}
+                            className="p-1.5 rounded-md hover:bg-[var(--background-secondary)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+                            </svg>
+                          </button>
+                          <AnimatePresence>
+                            {openMenuId === record.id && (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute right-0 top-full mt-1 w-44 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-lg z-50 overflow-hidden"
+                              >
+                                <Link
+                                  href={`/school-admin/attendance/${record.id}`}
+                                  onClick={() => setOpenMenuId(null)}
+                                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
+                                >
+                                  <svg className="w-3.5 h-3.5 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                  </svg>
+                                  View Details
+                                </Link>
+                                <button
+                                  onClick={() => {
+                                    setOpenMenuId(null);
+                                    // Reset to pending so they can re-mark
+                                    setMarkedRecords((prev) => {
+                                      const next = { ...prev };
+                                      // Find original record
+                                      const original = classAttendanceRecords.find((r) => r.id === record.id);
+                                      if (original && original.status === "pending") {
+                                        // Was originally pending — reset the override
+                                        delete next[record.id];
+                                      }
+                                      return next;
+                                    });
+                                  }}
+                                  className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
+                                >
+                                  <svg className="w-3.5 h-3.5 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                  </svg>
+                                  Edit Attendance
+                                </button>
+                                <div className="border-t border-[var(--border)]" />
+                                <button
+                                  onClick={() => {
+                                    setOpenMenuId(null);
+                                    // Simulate download
+                                    const blob = new Blob(
+                                      [`${record.className} Attendance Report\nDate: ${record.date}\nPresent: ${record.present}\nAbsent: ${record.absent}\nLate: ${record.late}\nRate: ${record.rate}%\nTeacher: ${record.teacher}\nMarked At: ${record.markedAt}`],
+                                      { type: "text/plain" }
+                                    );
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement("a");
+                                    a.href = url;
+                                    a.download = `${record.className.replace(/\s+/g, "-").toLowerCase()}-attendance.txt`;
+                                    a.click();
+                                    URL.revokeObjectURL(url);
+                                  }}
+                                  className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
+                                >
+                                  <svg className="w-3.5 h-3.5 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                  </svg>
+                                  Download Report
+                                </button>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Empty State */}
+            {filteredRecords.length === 0 && (
+              <div className="py-12 text-center">
+                <svg className="w-12 h-12 mx-auto text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                <h3 className="mt-4 text-sm font-medium text-[var(--foreground)]">No records found</h3>
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  Try adjusting your search or filter criteria
+                </p>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {filteredRecords.length > 0 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border)]">
+                <p className="text-sm text-[var(--muted)]">
+                  Showing <span className="font-medium text-[var(--foreground)]">1</span> to{" "}
+                  <span className="font-medium text-[var(--foreground)]">{filteredRecords.length}</span> of{" "}
+                  <span className="font-medium text-[var(--foreground)]">{filteredRecords.length}</span> classes
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    disabled
+                    className="px-3 py-1.5 text-sm text-[var(--muted)] bg-[var(--card)] border border-[var(--border)] rounded-md disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    disabled
+                    className="px-3 py-1.5 text-sm text-[var(--muted)] bg-[var(--card)] border border-[var(--border)] rounded-md disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Period-wise View */}
+      {activeView === "period" && <PeriodAttendanceTab />}
+
+      {/* Absenteeism View */}
+      {activeView === "absenteeism" && <AbsenteeismTab />}
+
+      {/* Leave Requests View */}
+      {activeView === "leave" && <LeaveRequestsTab />}
     </div>
   );
 }

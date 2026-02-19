@@ -9,6 +9,7 @@ import { useState } from "react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { notifications, staffConversations, currentUser, schoolInfo } from "@/lib/demo-data";
 import { MessagingPanel } from "@/components/dashboard/messaging/messaging-panel";
+import { NotificationCenter } from "@/components/dashboard/notification-center";
 
 export function DashboardHeader() {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -96,54 +97,11 @@ export function DashboardHeader() {
             </button>
 
             {/* Notifications Dropdown */}
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 rounded-xl bg-[var(--card)] border border-[var(--border)] shadow-xl overflow-hidden">
-                <div className="p-4 border-b border-[var(--border)]">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-[var(--foreground)]">Notifications</h3>
-                    <button className="text-xs text-[#0891B2] hover:underline">Mark all read</button>
-                  </div>
-                </div>
-                <div className="max-h-80 overflow-y-auto">
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`p-4 border-b border-[var(--border)] hover:bg-[var(--background-secondary)] transition-colors ${
-                        !notification.read ? "bg-[#0891B2]/5" : ""
-                      }`}
-                    >
-                      <div className="flex gap-3">
-                        <div className={`
-                          w-8 h-8 rounded-full flex items-center justify-center text-white text-sm
-                          ${notification.type === "warning" ? "bg-[#F59E0B]" : "bg-[#0891B2]"}
-                        `}>
-                          {notification.type === "warning" ? "⚠" : "ℹ"}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-[var(--foreground)]">
-                            {notification.title}
-                          </p>
-                          <p className="text-xs text-[var(--muted)] mt-0.5">
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-[var(--muted)] mt-1">
-                            {notification.timestamp}
-                          </p>
-                        </div>
-                        {!notification.read && (
-                          <div className="w-2 h-2 rounded-full bg-[#0891B2]" />
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="p-3 border-t border-[var(--border)]">
-                  <button className="w-full py-2 text-sm text-[#0891B2] font-medium hover:bg-[#0891B2]/10 rounded-lg transition-colors">
-                    View all notifications
-                  </button>
-                </div>
-              </div>
-            )}
+            <NotificationCenter
+              isOpen={showNotifications}
+              onClose={() => setShowNotifications(false)}
+              notifications={notifications}
+            />
           </div>
 
           {/* User Menu */}
