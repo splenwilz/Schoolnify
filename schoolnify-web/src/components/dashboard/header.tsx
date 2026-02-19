@@ -7,15 +7,19 @@
 
 import { useState } from "react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
-import { notifications, currentUser, schoolInfo } from "@/lib/demo-data";
+import { notifications, staffConversations, currentUser, schoolInfo } from "@/lib/demo-data";
+import { MessagingPanel } from "@/components/dashboard/messaging/messaging-panel";
 
 export function DashboardHeader() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showMessaging, setShowMessaging] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadMessages = staffConversations.reduce((sum, c) => sum + c.unreadCount, 0);
 
   return (
+    <>
     <header className="sticky top-0 z-30 bg-[var(--background)]/80 backdrop-blur-md border-b border-[var(--border)]">
       <div className="flex items-center justify-between h-16 px-4 lg:px-8">
         {/* Left side - Breadcrumb / Page Title area */}
@@ -52,12 +56,32 @@ export function DashboardHeader() {
           {/* Theme Toggle */}
           <ThemeToggle />
 
+          {/* Internal Messaging */}
+          <button
+            onClick={() => {
+              setShowMessaging(!showMessaging);
+              setShowNotifications(false);
+              setShowUserMenu(false);
+            }}
+            className="relative p-2 rounded-lg hover:bg-[var(--card)] border border-transparent hover:border-[var(--border)] transition-colors"
+          >
+            <svg className="w-5 h-5 text-[var(--foreground-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
+            </svg>
+            {unreadMessages > 0 && (
+              <span className="absolute top-1 right-1 w-4 h-4 text-[10px] font-bold text-white bg-[#0891B2] rounded-full flex items-center justify-center">
+                {unreadMessages}
+              </span>
+            )}
+          </button>
+
           {/* Notifications */}
           <div className="relative">
             <button
               onClick={() => {
                 setShowNotifications(!showNotifications);
                 setShowUserMenu(false);
+                setShowMessaging(false);
               }}
               className="relative p-2 rounded-lg hover:bg-[var(--card)] border border-transparent hover:border-[var(--border)] transition-colors"
             >
@@ -128,6 +152,7 @@ export function DashboardHeader() {
               onClick={() => {
                 setShowUserMenu(!showUserMenu);
                 setShowNotifications(false);
+                setShowMessaging(false);
               }}
               className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-[var(--card)] border border-transparent hover:border-[var(--border)] transition-colors"
             >
@@ -188,6 +213,13 @@ export function DashboardHeader() {
         </div>
       </div>
     </header>
+
+    {/* Messaging Slide-Out Panel */}
+    <MessagingPanel
+      isOpen={showMessaging}
+      onClose={() => setShowMessaging(false)}
+    />
+    </>
   );
 }
 

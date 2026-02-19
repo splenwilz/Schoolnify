@@ -6,80 +6,165 @@
  * @see Stripe Dashboard - Analytics/Reports pages
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 import { classAttendanceRecords, todayAttendance, attendanceData } from "@/lib/demo-data";
+
+type AttendanceRecord = (typeof classAttendanceRecords)[number];
+type ModifiedRecord = AttendanceRecord & { status: "completed" | "pending" };
+
+const weeklyData = {
+  "This Week": attendanceData.slice(0, 5),
+  "Last Week": [
+    { day: "Mon", present: 1160, absent: 72 },
+    { day: "Tue", present: 1178, absent: 58 },
+    { day: "Wed", present: 1150, absent: 82 },
+    { day: "Thu", present: 1190, absent: 50 },
+    { day: "Fri", present: 1140, absent: 95 },
+  ],
+  "This Month": [
+    { day: "Wk 1", present: 1155, absent: 78 },
+    { day: "Wk 2", present: 1170, absent: 65 },
+    { day: "Wk 3", present: 1182, absent: 55 },
+    { day: "Wk 4", present: 1195, absent: 46 },
+  ],
+};
+
+const chartPeriods = Object.keys(weeklyData) as (keyof typeof weeklyData)[];
+
+function buildCurvePath(
+  data: number[],
+  width: number,
+  height: number,
+  padX: number,
+  padY: number
+) {
+  const min = Math.min(...data) * 0.95;
+  const max = Math.max(...data) * 1.02;
+  const range = max - min || 1;
+
+  const pts = data.map((v, i) => ({
+    x: padX + (i / (data.length - 1)) * (width - padX * 2),
+    y: padY + (1 - (v - min) / range) * (height - padY * 2),
+  }));
+
+  let line = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 1; i < pts.length; i++) {
+    const p = pts[i - 1];
+    const c = pts[i];
+    const cx1 = p.x + (c.x - p.x) * 0.4;
+    const cx2 = c.x - (c.x - p.x) * 0.4;
+    line += ` C ${cx1} ${p.y}, ${cx2} ${c.y}, ${c.x} ${c.y}`;
+  }
+
+  const area =
+    line +
+    ` L ${pts[pts.length - 1].x} ${height} L ${pts[0].x} ${height} Z`;
+
+  return { line, area, pts };
+}
 
 export default function AttendancePage() {
   const [selectedDate, setSelectedDate] = useState("2026-01-06");
   const [statusFilter, setStatusFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [chartPeriod, setChartPeriod] = useState<keyof typeof weeklyData>("This Week");
+  const [markedRecords, setMarkedRecords] = useState<Record<string, ModifiedRecord>>({});
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  // Calculate stats
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    }
+    if (openMenuId) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [openMenuId]);
+
+  // Get record with local overrides applied
+  const getRecord = (original: AttendanceRecord): ModifiedRecord => {
+    return markedRecords[original.id] || original;
+  };
+
+  // Handle "Mark Now" — generate mock attendance data
+  const handleMarkNow = (record: AttendanceRecord) => {
+    const total = record.totalStudents;
+    const absent = Math.floor(Math.random() * 3);
+    const late = Math.floor(Math.random() * 2);
+    const present = total - absent - late;
+    const rate = parseFloat(((present / total) * 100).toFixed(1));
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const h = hours % 12 || 12;
+    const markedAt = `${h.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")} ${ampm}`;
+
+    setMarkedRecords((prev) => ({
+      ...prev,
+      [record.id]: {
+        ...record,
+        status: "completed",
+        present,
+        absent,
+        late,
+        rate,
+        markedAt,
+      },
+    }));
+  };
+
+  // Calculate stats (reactive to marked records)
   const stats = useMemo(() => {
-    const completed = classAttendanceRecords.filter(r => r.status === "completed").length;
-    const pending = classAttendanceRecords.filter(r => r.status === "pending").length;
-    const totalPresent = classAttendanceRecords.reduce((sum, r) => sum + r.present, 0);
-    const totalAbsent = classAttendanceRecords.reduce((sum, r) => sum + r.absent, 0);
-    const totalLate = classAttendanceRecords.reduce((sum, r) => sum + r.late, 0);
-    
-    return { completed, pending, totalPresent, totalAbsent, totalLate };
-  }, []);
+    const records = classAttendanceRecords.map((r) => getRecord(r));
+    const completed = records.filter(r => r.status === "completed").length;
+    const pending = records.filter(r => r.status === "pending").length;
+    const totalPresent = records.reduce((sum, r) => sum + r.present, 0);
+    const totalAbsent = records.reduce((sum, r) => sum + r.absent, 0);
+    const totalLate = records.reduce((sum, r) => sum + r.late, 0);
 
-  // Filter records
+    return { completed, pending, totalPresent, totalAbsent, totalLate };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markedRecords]);
+
+  // Filter records (with local overrides)
   const filteredRecords = useMemo(() => {
-    return classAttendanceRecords.filter(record => {
+    return classAttendanceRecords.map((r) => getRecord(r)).filter(record => {
       if (statusFilter && record.status !== statusFilter) return false;
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        if (!record.className.toLowerCase().includes(query) && 
+        if (!record.className.toLowerCase().includes(query) &&
             !record.teacher.toLowerCase().includes(query)) {
           return false;
         }
       }
       return true;
     });
-  }, [statusFilter, searchQuery]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, searchQuery, markedRecords]);
 
-  // Simple bar chart component
-  const BarChart = ({ data }: { data: typeof attendanceData }) => {
-    const maxValue = Math.max(...data.map(d => d.present + d.absent));
-    
-    return (
-      <div className="flex items-end justify-between gap-2 h-32">
-        {data.slice(0, 5).map((day, i) => {
-          const total = day.present + day.absent;
-          const height = total > 0 ? (total / maxValue) * 100 : 0;
-          const presentHeight = total > 0 ? (day.present / total) * 100 : 0;
-          
-          return (
-            <div key={i} className="flex-1 flex flex-col items-center gap-2">
-              <div className="w-full flex flex-col justify-end h-24">
-                {total > 0 ? (
-                  <div 
-                    className="w-full rounded-t-md overflow-hidden"
-                    style={{ height: `${height}%` }}
-                  >
-                    <div 
-                      className="w-full bg-[#10B981]"
-                      style={{ height: `${presentHeight}%` }}
-                    />
-                    <div 
-                      className="w-full bg-[#EF4444]"
-                      style={{ height: `${100 - presentHeight}%` }}
-                    />
-                  </div>
-                ) : (
-                  <div className="w-full h-4 rounded-t-md bg-[var(--background-secondary)]" />
-                )}
-              </div>
-              <span className="text-xs text-[var(--muted)]">{day.day}</span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
+  // Chart data
+  const chartData = weeklyData[chartPeriod];
+  const W = 500;
+  const H = 160;
+  const padX = 10;
+  const padY = 8;
+
+  const presentValues = chartData.map((d) => d.present);
+  const absentValues = chartData.map((d) => d.absent);
+
+  const present = buildCurvePath(presentValues, W, H, padX, padY);
+  const absent = buildCurvePath(absentValues, W, H, padX, padY);
+
+  const avgRate = chartData.reduce((sum, d) => sum + d.present, 0) /
+    chartData.reduce((sum, d) => sum + d.present + d.absent, 0) * 100;
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -149,24 +234,144 @@ export default function AttendancePage() {
 
       {/* Weekly Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="lg:col-span-2 p-6 rounded-lg border border-[var(--border)] bg-[var(--card)]">
-          <div className="flex items-center justify-between mb-4">
+        <div className="lg:col-span-2 p-6 rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <div className="flex items-start justify-between mb-1">
             <div>
-              <h3 className="text-sm font-medium text-[var(--foreground)]">Weekly Attendance</h3>
-              <p className="text-xs text-[var(--muted)]">This week&apos;s daily breakdown</p>
+              <h3 className="text-[15px] font-semibold text-[var(--foreground)]">
+                Attendance Trend
+              </h3>
+              <div className="flex items-baseline gap-2 mt-1">
+                <p className="text-[24px] font-bold text-[var(--foreground)] tabular-nums leading-tight">
+                  {avgRate.toFixed(1)}%
+                </p>
+                <span className="inline-flex items-center px-1.5 py-0.5 text-[11px] font-semibold rounded-md bg-[#10B981]/10 text-[#10B981]">
+                  +0.8%
+                </span>
+              </div>
+              <p className="text-[11px] text-[var(--muted)] mt-0.5">
+                Average attendance rate
+              </p>
             </div>
-            <div className="flex items-center gap-4 text-xs">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-[#10B981]" />
-                Present
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-[#EF4444]" />
-                Absent
-              </span>
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[var(--background-secondary)]">
+                {chartPeriods.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setChartPeriod(p)}
+                    className={cn(
+                      "px-2.5 py-1 text-[11px] font-medium rounded-md transition-all whitespace-nowrap",
+                      chartPeriod === p
+                        ? "bg-[var(--card)] text-[var(--foreground)] shadow-sm"
+                        : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                    )}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-4 text-[11px]">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#0891B2]" />
+                  Present
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#EF4444]" />
+                  Absent
+                </span>
+              </div>
             </div>
           </div>
-          <BarChart data={attendanceData} />
+
+          {/* SVG Chart */}
+          <div className="mt-4 -mx-2">
+            <svg
+              viewBox={`0 0 ${W} ${H}`}
+              className="w-full"
+              preserveAspectRatio="none"
+            >
+              <defs>
+                <linearGradient id="presentGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#0891B2" stopOpacity="0.2" />
+                  <stop offset="100%" stopColor="#0891B2" stopOpacity="0.02" />
+                </linearGradient>
+                <linearGradient id="absentGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#EF4444" stopOpacity="0.12" />
+                  <stop offset="100%" stopColor="#EF4444" stopOpacity="0.01" />
+                </linearGradient>
+              </defs>
+
+              {/* Present area + line */}
+              <motion.path
+                key={`pa-${chartPeriod}`}
+                d={present.area}
+                fill="url(#presentGrad)"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+              />
+              <motion.path
+                key={`pl-${chartPeriod}`}
+                d={present.line}
+                fill="none"
+                stroke="#0891B2"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                initial={{ pathLength: 0, opacity: 0 }}
+                animate={{ pathLength: 1, opacity: 1 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+              />
+
+              {/* Absent area + line */}
+              <motion.path
+                key={`aa-${chartPeriod}`}
+                d={absent.area}
+                fill="url(#absentGrad)"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              />
+              <motion.path
+                key={`al-${chartPeriod}`}
+                d={absent.line}
+                fill="none"
+                stroke="#EF4444"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray="6 4"
+                initial={{ pathLength: 0, opacity: 0 }}
+                animate={{ pathLength: 1, opacity: 0.7 }}
+                transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
+              />
+
+              {/* Present dots */}
+              {present.pts.map((pt, i) => (
+                <motion.circle
+                  key={`pd-${chartPeriod}-${i}`}
+                  cx={pt.x}
+                  cy={pt.y}
+                  r="4"
+                  fill="#0891B2"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.5 + i * 0.06, type: "spring" }}
+                />
+              ))}
+            </svg>
+          </div>
+
+          {/* X-axis labels */}
+          <div className="flex justify-between px-2 mt-1">
+            {chartData.map((d, i) => (
+              <div key={i} className="flex flex-col items-center">
+                <span className="text-[10px] text-[var(--muted)]">{d.day}</span>
+                <span className="text-[10px] font-semibold text-[var(--foreground)] tabular-nums mt-0.5">
+                  {d.present.toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Quick Actions */}
@@ -353,18 +558,91 @@ export default function AttendancePage() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   {record.status === "pending" ? (
-                    <Link 
-                      href={`/school-admin/attendance/mark?class=${record.id}`}
+                    <button
+                      onClick={() => handleMarkNow(record)}
                       className="px-3 py-1.5 text-xs font-medium text-white bg-[#0891B2] rounded-md hover:bg-[#0E7490] transition-colors"
                     >
                       Mark Now
-                    </Link>
-                  ) : (
-                    <button className="p-1.5 rounded-md hover:bg-[var(--background-secondary)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
-                      </svg>
                     </button>
+                  ) : (
+                    <div className="relative" ref={openMenuId === record.id ? menuRef : undefined}>
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === record.id ? null : record.id)}
+                        className="p-1.5 rounded-md hover:bg-[var(--background-secondary)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+                        </svg>
+                      </button>
+                      <AnimatePresence>
+                        {openMenuId === record.id && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute right-0 top-full mt-1 w-44 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-lg z-50 overflow-hidden"
+                          >
+                            <Link
+                              href={`/school-admin/attendance/${record.id}`}
+                              onClick={() => setOpenMenuId(null)}
+                              className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                              </svg>
+                              View Details
+                            </Link>
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                // Reset to pending so they can re-mark
+                                setMarkedRecords((prev) => {
+                                  const next = { ...prev };
+                                  // Find original record
+                                  const original = classAttendanceRecords.find((r) => r.id === record.id);
+                                  if (original && original.status === "pending") {
+                                    // Was originally pending — reset the override
+                                    delete next[record.id];
+                                  }
+                                  return next;
+                                });
+                              }}
+                              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                              </svg>
+                              Edit Attendance
+                            </button>
+                            <div className="border-t border-[var(--border)]" />
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                // Simulate download
+                                const blob = new Blob(
+                                  [`${record.className} Attendance Report\nDate: ${record.date}\nPresent: ${record.present}\nAbsent: ${record.absent}\nLate: ${record.late}\nRate: ${record.rate}%\nTeacher: ${record.teacher}\nMarked At: ${record.markedAt}`],
+                                  { type: "text/plain" }
+                                );
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `${record.className.replace(/\s+/g, "-").toLowerCase()}-attendance.txt`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                              }}
+                              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                              </svg>
+                              Download Report
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   )}
                 </td>
               </tr>
