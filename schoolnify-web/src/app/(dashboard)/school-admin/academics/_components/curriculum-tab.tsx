@@ -8,6 +8,7 @@
 
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { useSchoolConfig } from "@/lib/school-config-context";
 
 interface Topic {
   name: string;
@@ -51,6 +52,7 @@ const statusConfig: Record<
 };
 
 export function CurriculumTab({ items }: CurriculumTabProps) {
+  const { fmtGrade } = useSchoolConfig();
   const [selectedSubject, setSelectedSubject] = useState("all");
   const [selectedGrade, setSelectedGrade] = useState("all");
 
@@ -165,7 +167,7 @@ export function CurriculumTab({ items }: CurriculumTabProps) {
             <option value="all">All Grades</option>
             {grades.map((grade) => (
               <option key={grade} value={grade}>
-                {grade}
+                {fmtGrade(grade)}
               </option>
             ))}
           </select>
@@ -206,7 +208,7 @@ export function CurriculumTab({ items }: CurriculumTabProps) {
                     {item.subjectName}
                   </h4>
                   <p className="text-xs text-[var(--muted)] mt-0.5">
-                    {item.grade} &middot; {item.term}
+                    {fmtGrade(item.grade)} &middot; {item.term}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">

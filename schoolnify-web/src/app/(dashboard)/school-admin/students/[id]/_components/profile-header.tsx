@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Edit3, Mail, ChevronRight } from "lucide-react";
+import { useSchoolConfig } from "@/lib/school-config-context";
 import { Avatar } from "../../_components/avatar";
 
 interface Student {
@@ -22,6 +23,8 @@ interface ProfileHeaderProps {
 }
 
 export function ProfileHeader({ student }: ProfileHeaderProps) {
+  const { fmtGrade } = useSchoolConfig();
+
   return (
     <div>
       {/* Breadcrumb */}
@@ -67,7 +70,7 @@ export function ProfileHeader({ student }: ProfileHeaderProps) {
             <p className="text-sm text-[var(--muted)] mt-1">{student.email}</p>
             <div className="flex items-center gap-2 mt-2">
               <span className="px-2 py-0.5 text-xs font-medium rounded-md bg-[var(--background-secondary)] text-[var(--foreground)]">
-                Grade {student.grade}
+                {fmtGrade(student.grade)}
               </span>
               <span className="px-2 py-0.5 text-xs font-medium rounded-md bg-[#0891B2]/10 text-[#0891B2]">
                 GPA {student.gpa.toFixed(1)}

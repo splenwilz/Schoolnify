@@ -12,6 +12,7 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSchoolConfig } from "@/lib/school-config-context";
 import { Avatar } from "./avatar";
 
 interface Student {
@@ -58,6 +59,7 @@ export function StudentTable({
   onPageChange,
   itemsPerPage,
 }: StudentTableProps) {
+  const { fmtGrade } = useSchoolConfig();
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -254,7 +256,7 @@ export function StudentTable({
                   {/* Grade */}
                   <td className="px-4 py-4">
                     <span className="text-[13px] text-[var(--foreground)]">
-                      {student.grade}
+                      {fmtGrade(student.grade)}
                     </span>
                   </td>
 

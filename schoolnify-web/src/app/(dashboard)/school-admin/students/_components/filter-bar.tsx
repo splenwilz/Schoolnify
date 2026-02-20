@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSchoolConfig } from "@/lib/school-config-context";
 
 interface Tab {
   id: string;
@@ -37,6 +38,7 @@ export function FilterBar({
   onFeeStatusChange,
   onClearAll,
 }: FilterBarProps) {
+  const { fmtGrade } = useSchoolConfig();
   const hasActiveFilters = !!selectedGrade || !!selectedFeeStatus;
 
   return (
@@ -113,7 +115,7 @@ export function FilterBar({
             <option value="">All Grades</option>
             {grades.map((grade) => (
               <option key={grade} value={grade}>
-                Grade {grade}
+                {fmtGrade(grade)}
               </option>
             ))}
           </select>

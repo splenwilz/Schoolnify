@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Plus, FileDown } from "lucide-react";
 import { classes } from "@/lib/demo-data";
+import { useSchoolConfig } from "@/lib/school-config-context";
 import { ClassStatCards } from "./_components/class-stat-cards";
 import { ClassSummaryCard } from "./_components/class-summary-card";
 import { ClassGrowthChart } from "./_components/class-growth-chart";
@@ -42,6 +43,7 @@ const tabs = [
 ];
 
 export default function ClassesPage() {
+  const { fmtClass } = useSchoolConfig();
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");

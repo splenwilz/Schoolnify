@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSchoolConfig } from "@/lib/school-config-context";
 
 interface Application {
   id: string;
@@ -76,14 +77,6 @@ const statusConfig: Record<string, { bg: string; text: string; label: string }> 
   waitlisted: { bg: "bg-[#A855F7]/10", text: "text-[#A855F7]", label: "Waitlisted" },
 };
 
-const gradeOptions = [
-  "Grade 7",
-  "Grade 8",
-  "Grade 9",
-  "Grade 10",
-  "Grade 11",
-  "Grade 12",
-];
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", {
@@ -106,6 +99,8 @@ export function ApplicationTable({
   selectedIds,
   onSelectionChange,
 }: ApplicationTableProps) {
+  const { fmtClass, gradeOptions } = useSchoolConfig();
+  const gradeOpts = gradeOptions({ minLevel: 7, maxLevel: 12 });
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);
 
@@ -259,9 +254,9 @@ export function ApplicationTable({
               )}
             >
               <option value="">All Grades</option>
-              {gradeOptions.map((grade) => (
-                <option key={grade} value={grade}>
-                  {grade}
+              {gradeOpts.map((g) => (
+                <option key={g.value} value={g.value}>
+                  {g.label}
                 </option>
               ))}
             </select>
@@ -369,7 +364,7 @@ export function ApplicationTable({
                     {/* Grade */}
                     <td className="px-4 py-3.5">
                       <span className="text-[13px] text-[var(--foreground)]">
-                        {app.grade}
+                        {fmtClass(app.grade)}
                       </span>
                     </td>
 

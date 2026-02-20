@@ -5,6 +5,10 @@
  * Displays academic terms with status, dates, and duration
  */
 
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plus, X, Calendar, Clock, Pencil, CheckCircle2 } from "lucide-react";
+
 interface Term {
   id: string;
   name: string;
@@ -47,7 +51,106 @@ function getTermStatus(
   return { label: "Completed", color: "#10B981", bg: "rgba(16,185,129,0.1)" };
 }
 
-export function TermsTab({ terms }: TermsTabProps) {
+function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ duration: 0.2 }}
+        className="w-full max-w-lg rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+export function TermsTab({ terms: initialTerms }: TermsTabProps) {
+  const [terms, setTerms] = useState<Term[]>(initialTerms);
+  const [showNewYear, setShowNewYear] = useState(false);
+  const [editingTerm, setEditingTerm] = useState<Term | null>(null);
+
+  // New Academic Year form state
+  const [newYearLabel, setNewYearLabel] = useState("2026-2027");
+  const [newTermCount, setNewTermCount] = useState(3);
+  const [newYearCreated, setNewYearCreated] = useState(false);
+
+  // Edit Term form state
+  const [editName, setEditName] = useState("");
+  const [editStart, setEditStart] = useState("");
+  const [editEnd, setEditEnd] = useState("");
+  const [editSaved, setEditSaved] = useState(false);
+
+  const openEditTerm = (term: Term) => {
+    setEditingTerm(term);
+    setEditName(term.name);
+    setEditStart(term.startDate);
+    setEditEnd(term.endDate);
+    setEditSaved(false);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingTerm || !editName || !editStart || !editEnd) return;
+    setTerms((prev) =>
+      prev.map((t) =>
+        t.id === editingTerm.id
+          ? { ...t, name: editName, startDate: editStart, endDate: editEnd }
+          : t
+      )
+    );
+    setEditSaved(true);
+    setTimeout(() => {
+      setEditingTerm(null);
+      setEditSaved(false);
+    }, 1000);
+  };
+
+  const handleCreateYear = () => {
+    if (!newYearLabel) return;
+    // Generate terms for the new year
+    const [startYear] = newYearLabel.split("-").map(Number);
+    const termNames =
+      newTermCount === 2
+        ? ["Semester 1", "Semester 2"]
+        : newTermCount === 4
+          ? ["Quarter 1", "Quarter 2", "Quarter 3", "Quarter 4"]
+          : ["Term 1", "Term 2", "Term 3"];
+
+    const monthsPerTerm = Math.floor(10 / newTermCount);
+    const newTerms: Term[] = termNames.map((name, i) => {
+      const startMonth = 8 + i * monthsPerTerm; // Aug start
+      const endMonth = startMonth + monthsPerTerm;
+      const sy = startMonth > 12 ? startYear + 1 : startYear;
+      const ey = endMonth > 12 ? startYear + 1 : startYear;
+      const sm = startMonth > 12 ? startMonth - 12 : startMonth;
+      const em = endMonth > 12 ? endMonth - 12 : endMonth;
+      return {
+        id: `term_new_${i}`,
+        name: `${name} (${newYearLabel})`,
+        startDate: `${sy}-${String(sm).padStart(2, "0")}-01`,
+        endDate: `${ey}-${String(em).padStart(2, "0")}-01`,
+        isCurrent: false,
+      };
+    });
+
+    setTerms((prev) => [...prev, ...newTerms]);
+    setNewYearCreated(true);
+    setTimeout(() => {
+      setShowNewYear(false);
+      setNewYearCreated(false);
+      setNewYearLabel("2027-2028");
+    }, 1200);
+  };
+
   return (
     <div className="space-y-6">
       {/* Academic Year Header */}
@@ -58,23 +161,17 @@ export function TermsTab({ terms }: TermsTabProps) {
               Academic Year: 2025-2026
             </h3>
             <p className="text-sm text-[var(--muted)] mt-1">
-              3 terms configured for this academic year
+              {terms.length} terms configured
             </p>
           </div>
-          <button className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-[#0891B2] rounded-lg hover:bg-[#0E7490] transition-colors">
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 4.5v15m7.5-7.5h-15"
-              />
-            </svg>
+          <button
+            onClick={() => {
+              setNewYearCreated(false);
+              setShowNewYear(true);
+            }}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-[#0891B2] rounded-lg hover:bg-[#0E7490] transition-colors"
+          >
+            <Plus className="w-4 h-4" />
             New Academic Year
           </button>
         </div>
@@ -114,19 +211,7 @@ export function TermsTab({ terms }: TermsTabProps) {
               {/* Dates */}
               <div className="space-y-3 mb-4">
                 <div className="flex items-center gap-2">
-                  <svg
-                    className="w-4 h-4 text-[var(--muted)]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
-                    />
-                  </svg>
+                  <Calendar className="w-4 h-4 text-[var(--muted)]" />
                   <div>
                     <p className="text-xs text-[var(--muted)]">Start Date</p>
                     <p className="text-sm font-medium text-[var(--foreground)]">
@@ -135,19 +220,7 @@ export function TermsTab({ terms }: TermsTabProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <svg
-                    className="w-4 h-4 text-[var(--muted)]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
-                    />
-                  </svg>
+                  <Calendar className="w-4 h-4 text-[var(--muted)]" />
                   <div>
                     <p className="text-xs text-[var(--muted)]">End Date</p>
                     <p className="text-sm font-medium text-[var(--foreground)]">
@@ -159,45 +232,249 @@ export function TermsTab({ terms }: TermsTabProps) {
 
               {/* Duration */}
               <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg bg-[var(--background-secondary)]">
-                <svg
-                  className="w-4 h-4 text-[var(--muted)]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-                  />
-                </svg>
+                <Clock className="w-4 h-4 text-[var(--muted)]" />
                 <span className="text-sm text-[var(--foreground)]">
                   {weeks} weeks
                 </span>
               </div>
 
               {/* Edit Button */}
-              <button className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-[var(--foreground)] bg-[var(--card)] border border-[var(--border)] rounded-lg hover:bg-[var(--background-secondary)] transition-colors">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
-                  />
-                </svg>
+              <button
+                onClick={() => openEditTerm(term)}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-[var(--foreground)] bg-[var(--card)] border border-[var(--border)] rounded-lg hover:bg-[var(--background-secondary)] transition-colors"
+              >
+                <Pencil className="w-4 h-4" />
                 Edit Term
               </button>
             </div>
           );
         })}
       </div>
+
+      {/* New Academic Year Modal */}
+      <AnimatePresence>
+        {showNewYear && (
+          <Overlay onClose={() => setShowNewYear(false)}>
+            {newYearCreated ? (
+              <div className="p-8 text-center">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                >
+                  <CheckCircle2 className="w-12 h-12 text-[#10B981] mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-[var(--foreground)] mb-1">
+                    Academic Year Created
+                  </h3>
+                  <p className="text-sm text-[var(--muted)]">
+                    {newTermCount} terms have been added for {newYearLabel}
+                  </p>
+                </motion.div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between p-5 border-b border-[var(--border)]">
+                  <div>
+                    <h3 className="text-lg font-semibold text-[var(--foreground)]">
+                      New Academic Year
+                    </h3>
+                    <p className="text-sm text-[var(--muted)] mt-0.5">
+                      Set up a new academic year with terms
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowNewYear(false)}
+                    className="p-1.5 rounded-lg text-[var(--muted)] hover:bg-[var(--background-secondary)] transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">
+                      Academic Year
+                    </label>
+                    <input
+                      type="text"
+                      value={newYearLabel}
+                      onChange={(e) => setNewYearLabel(e.target.value)}
+                      placeholder="e.g. 2026-2027"
+                      className="w-full px-3 py-2.5 text-sm bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#0891B2] focus:ring-2 focus:ring-[#0891B2]/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">
+                      Term Structure
+                    </label>
+                    <div className="flex gap-2">
+                      {[
+                        { value: 2, label: "2 Semesters" },
+                        { value: 3, label: "3 Terms" },
+                        { value: 4, label: "4 Quarters" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setNewTermCount(opt.value)}
+                          className={`flex-1 px-3 py-2.5 text-sm font-medium rounded-xl border transition-all ${
+                            newTermCount === opt.value
+                              ? "border-[#0891B2] bg-[#0891B2]/10 text-[#0891B2]"
+                              : "border-[var(--border)] text-[var(--foreground-secondary)] hover:border-[var(--muted)]"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-[var(--background-secondary)] p-3">
+                    <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2">
+                      Preview
+                    </p>
+                    <div className="space-y-1.5">
+                      {(newTermCount === 2
+                        ? ["Semester 1", "Semester 2"]
+                        : newTermCount === 4
+                          ? ["Quarter 1", "Quarter 2", "Quarter 3", "Quarter 4"]
+                          : ["Term 1", "Term 2", "Term 3"]
+                      ).map((name) => (
+                        <div
+                          key={name}
+                          className="flex items-center gap-2 text-sm text-[var(--foreground)]"
+                        >
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#0891B2]" />
+                          {name} ({newYearLabel})
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-[var(--muted)] mt-2">
+                      You can edit dates for each term after creation.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 p-5 border-t border-[var(--border)]">
+                  <button
+                    onClick={() => setShowNewYear(false)}
+                    className="px-4 py-2 text-sm font-medium text-[var(--foreground-secondary)] hover:text-[var(--foreground)] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateYear}
+                    disabled={!newYearLabel}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0891B2] rounded-xl hover:bg-[#0E7490] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Year
+                  </button>
+                </div>
+              </>
+            )}
+          </Overlay>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Term Modal */}
+      <AnimatePresence>
+        {editingTerm && (
+          <Overlay onClose={() => setEditingTerm(null)}>
+            {editSaved ? (
+              <div className="p-8 text-center">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                >
+                  <CheckCircle2 className="w-12 h-12 text-[#10B981] mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-[var(--foreground)] mb-1">
+                    Term Updated
+                  </h3>
+                  <p className="text-sm text-[var(--muted)]">
+                    {editName} has been updated.
+                  </p>
+                </motion.div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between p-5 border-b border-[var(--border)]">
+                  <div>
+                    <h3 className="text-lg font-semibold text-[var(--foreground)]">
+                      Edit Term
+                    </h3>
+                    <p className="text-sm text-[var(--muted)] mt-0.5">
+                      Update term details and dates
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setEditingTerm(null)}
+                    className="p-1.5 rounded-lg text-[var(--muted)] hover:bg-[var(--background-secondary)] transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">
+                      Term Name
+                    </label>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl text-[var(--foreground)] focus:outline-none focus:border-[#0891B2] focus:ring-2 focus:ring-[#0891B2]/20"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={editStart}
+                        onChange={(e) => setEditStart(e.target.value)}
+                        className="w-full px-3 py-2.5 text-sm bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl text-[var(--foreground)] focus:outline-none focus:border-[#0891B2] focus:ring-2 focus:ring-[#0891B2]/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">
+                        End Date
+                      </label>
+                      <input
+                        type="date"
+                        value={editEnd}
+                        onChange={(e) => setEditEnd(e.target.value)}
+                        className="w-full px-3 py-2.5 text-sm bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl text-[var(--foreground)] focus:outline-none focus:border-[#0891B2] focus:ring-2 focus:ring-[#0891B2]/20"
+                      />
+                    </div>
+                  </div>
+                  {editStart && editEnd && new Date(editEnd) > new Date(editStart) && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--background-secondary)]">
+                      <Clock className="w-4 h-4 text-[var(--muted)]" />
+                      <span className="text-sm text-[var(--foreground)]">
+                        {getWeeksDuration(editStart, editEnd)} weeks
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-end gap-2 p-5 border-t border-[var(--border)]">
+                  <button
+                    onClick={() => setEditingTerm(null)}
+                    className="px-4 py-2 text-sm font-medium text-[var(--foreground-secondary)] hover:text-[var(--foreground)] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={!editName || !editStart || !editEnd}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0891B2] rounded-xl hover:bg-[#0E7490] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    Save Changes
+                  </button>
+                </div>
+              </>
+            )}
+          </Overlay>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

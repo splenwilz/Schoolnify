@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, MessageCircle, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSchoolConfig } from "@/lib/school-config-context";
 
 interface NewApplication {
   studentName: string;
@@ -24,14 +25,6 @@ interface ApplicationModalProps {
   onSave: (data: NewApplication, mode: EntryMode) => void;
 }
 
-const gradeOptions = [
-  "Grade 7",
-  "Grade 8",
-  "Grade 9",
-  "Grade 10",
-  "Grade 11",
-  "Grade 12",
-];
 
 const EMPTY_FORM: NewApplication = {
   studentName: "",
@@ -55,6 +48,8 @@ export function ApplicationModal({
   onClose,
   onSave,
 }: ApplicationModalProps) {
+  const { gradeOptions } = useSchoolConfig();
+  const gradeOpts = gradeOptions({ minLevel: 7, maxLevel: 12 });
   const [mode, setMode] = useState<EntryMode>("inquiry");
   const [formData, setFormData] = useState<NewApplication>(EMPTY_FORM);
 
@@ -230,9 +225,9 @@ export function ApplicationModal({
                       className={inputClasses}
                     >
                       <option value="">Select grade</option>
-                      {gradeOptions.map((grade) => (
-                        <option key={grade} value={grade}>
-                          {grade}
+                      {gradeOpts.map((g) => (
+                        <option key={g.value} value={g.value}>
+                          {g.label}
                         </option>
                       ))}
                     </select>

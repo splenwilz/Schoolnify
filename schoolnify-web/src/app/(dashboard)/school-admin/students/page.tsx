@@ -121,7 +121,7 @@ export default function StudentsPage() {
             className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-white bg-[#0891B2] rounded-xl hover:bg-[#0E7490] shadow-sm shadow-[#0891B2]/25 transition-all"
           >
             <UserPlus className="w-4 h-4" />
-            Add student
+            Enroll student
           </Link>
         </div>
       </div>

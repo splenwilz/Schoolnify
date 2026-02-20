@@ -1,5 +1,7 @@
 "use client";
 
+import { useSchoolConfig } from "@/lib/school-config-context";
+
 interface StudentInfoData {
   studentName: string;
   email: string;
@@ -21,6 +23,9 @@ const inputClassName =
 const labelClassName = "block text-sm font-medium text-[var(--foreground)] mb-1.5";
 
 export function StepStudentInfo({ data, onChange }: StepStudentInfoProps) {
+  const { gradeOptions } = useSchoolConfig();
+  const gradeOpts = gradeOptions({ minLevel: 7, maxLevel: 12 });
+
   return (
     <div className="space-y-5">
       <div>
@@ -106,12 +111,11 @@ export function StepStudentInfo({ data, onChange }: StepStudentInfoProps) {
             required
           >
             <option value="">Select grade</option>
-            <option value="Grade 7">Grade 7</option>
-            <option value="Grade 8">Grade 8</option>
-            <option value="Grade 9">Grade 9</option>
-            <option value="Grade 10">Grade 10</option>
-            <option value="Grade 11">Grade 11</option>
-            <option value="Grade 12">Grade 12</option>
+            {gradeOpts.map((g) => (
+              <option key={g.value} value={g.value}>
+                {g.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>

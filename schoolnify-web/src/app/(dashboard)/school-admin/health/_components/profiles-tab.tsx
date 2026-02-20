@@ -2,6 +2,7 @@
 
 import { Search, ChevronDown, Eye, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSchoolConfig } from "@/lib/school-config-context";
 
 interface HealthProfile {
   id: string;
@@ -42,6 +43,7 @@ export function ProfilesTab({
   onGradeChange,
   onViewProfile,
 }: ProfilesTabProps) {
+  const { fmtGrade } = useSchoolConfig();
   const grades = Array.from(new Set(profiles.map((p) => p.grade))).sort();
 
   const filtered = profiles.filter((p) => {
@@ -104,7 +106,7 @@ export function ProfilesTab({
               <option value="">All Grades</option>
               {grades.map((g) => (
                 <option key={g} value={g}>
-                  {g}
+                  {fmtGrade(g)}
                 </option>
               ))}
             </select>
@@ -170,7 +172,7 @@ export function ProfilesTab({
                         {profile.studentName}
                       </p>
                       <p className="text-[12px] text-[var(--muted)] mt-0.5">
-                        {profile.grade}
+                        {fmtGrade(profile.grade)}
                       </p>
                     </button>
                   </td>

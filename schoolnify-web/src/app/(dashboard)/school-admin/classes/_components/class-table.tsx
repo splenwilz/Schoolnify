@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   MoreHorizontal,
   ChevronLeft,
@@ -13,8 +14,15 @@ import {
   Search,
   X,
   ChevronDown,
+  Eye,
+  ClipboardCheck,
+  Users,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSchoolConfig } from "@/lib/school-config-context";
+import { parseGradeCode } from "@/lib/class-naming";
 
 interface ClassItem {
   id: string;
@@ -87,8 +95,24 @@ export function ClassTable({
   selectedTeacher,
   onTeacherChange,
 }: ClassTableProps) {
+  const router = useRouter();
+  const { fmtClass, fmtGrade } = useSchoolConfig();
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    }
+    if (openMenuId) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [openMenuId]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -218,7 +242,7 @@ export function ClassTable({
               <option value="">All Grades</option>
               {grades.map((grade) => (
                 <option key={grade} value={grade}>
-                  Grade {grade}
+                  {fmtGrade(grade)}
                 </option>
               ))}
             </select>
@@ -317,7 +341,8 @@ export function ClassTable({
           <tbody>
             {paginatedClasses.map((cls, index) => {
               const isSelected = selectedClasses.includes(cls.id);
-              const gradeLabel = cls.name.replace("Grade ", "");
+              const parsed = parseGradeCode(cls.name);
+              const gradeLabel = parsed ? `${parsed.level}${parsed.section}` : cls.name;
 
               return (
                 <motion.tr
@@ -362,7 +387,7 @@ export function ClassTable({
                         {gradeLabel}
                       </div>
                       <span className="text-[13px] font-semibold text-[var(--foreground)] group-hover/link:text-[#0891B2] transition-colors">
-                        {cls.name}
+                        {fmtClass(cls.name)}
                       </span>
                     </Link>
                   </td>
@@ -412,9 +437,80 @@ export function ClassTable({
 
                   {/* Actions */}
                   <td className="px-4 py-4">
-                    <button className="p-1.5 rounded-lg text-[var(--muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--background-secondary)] transition-all">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
+                    <div className="relative" ref={openMenuId === cls.id ? menuRef : undefined}>
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === cls.id ? null : cls.id)}
+                        className={cn(
+                          "p-1.5 rounded-lg text-[var(--muted)] hover:bg-[var(--background-secondary)] transition-all",
+                          openMenuId === cls.id ? "opacity-100 bg-[var(--background-secondary)]" : "opacity-0 group-hover:opacity-100"
+                        )}
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                      <AnimatePresence>
+                        {openMenuId === cls.id && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-lg z-50 overflow-hidden py-1"
+                          >
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                router.push(`/school-admin/classes/${cls.id}`);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-[var(--muted)]" />
+                              View details
+                            </button>
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                router.push(`/school-admin/attendance/mark?class=${cls.id}`);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
+                            >
+                              <ClipboardCheck className="w-3.5 h-3.5 text-[var(--muted)]" />
+                              Mark attendance
+                            </button>
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                router.push(`/school-admin/classes/${cls.id}?tab=students`);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
+                            >
+                              <Users className="w-3.5 h-3.5 text-[var(--muted)]" />
+                              View students
+                            </button>
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                router.push(`/school-admin/classes/${cls.id}?tab=assignments`);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-[var(--muted)]" />
+                              Assignments
+                            </button>
+                            <div className="my-1 border-t border-[var(--border)]" />
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                // In production, this would call an API to delete the class
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-red-500 hover:bg-red-500/5 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Delete class
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </td>
                 </motion.tr>
               );

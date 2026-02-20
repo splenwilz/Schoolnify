@@ -106,34 +106,6 @@ export default function AttendancePage() {
     return markedRecords[original.id] || original;
   };
 
-  // Handle "Mark Now" — generate mock attendance data
-  const handleMarkNow = (record: AttendanceRecord) => {
-    const total = record.totalStudents;
-    const absent = Math.floor(Math.random() * 3);
-    const late = Math.floor(Math.random() * 2);
-    const present = total - absent - late;
-    const rate = parseFloat(((present / total) * 100).toFixed(1));
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const ampm = hours >= 12 ? "PM" : "AM";
-    const h = hours % 12 || 12;
-    const markedAt = `${h.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")} ${ampm}`;
-
-    setMarkedRecords((prev) => ({
-      ...prev,
-      [record.id]: {
-        ...record,
-        status: "completed",
-        present,
-        absent,
-        late,
-        rate,
-        markedAt,
-      },
-    }));
-  };
-
   // Calculate stats (reactive to marked records)
   const stats = useMemo(() => {
     const records = classAttendanceRecords.map((r) => getRecord(r));
@@ -592,12 +564,12 @@ export default function AttendancePage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       {record.status === "pending" ? (
-                        <button
-                          onClick={() => handleMarkNow(record)}
-                          className="px-3 py-1.5 text-xs font-medium text-white bg-[#0891B2] rounded-md hover:bg-[#0E7490] transition-colors"
+                        <Link
+                          href={`/school-admin/attendance/mark?class=${record.id}`}
+                          className="px-3 py-1.5 text-xs font-medium text-white bg-[#0891B2] rounded-md hover:bg-[#0E7490] transition-colors inline-block"
                         >
                           Mark Now
-                        </button>
+                        </Link>
                       ) : (
                         <div className="relative" ref={openMenuId === record.id ? menuRef : undefined}>
                           <button
@@ -628,28 +600,16 @@ export default function AttendancePage() {
                                   </svg>
                                   View Details
                                 </Link>
-                                <button
-                                  onClick={() => {
-                                    setOpenMenuId(null);
-                                    // Reset to pending so they can re-mark
-                                    setMarkedRecords((prev) => {
-                                      const next = { ...prev };
-                                      // Find original record
-                                      const original = classAttendanceRecords.find((r) => r.id === record.id);
-                                      if (original && original.status === "pending") {
-                                        // Was originally pending — reset the override
-                                        delete next[record.id];
-                                      }
-                                      return next;
-                                    });
-                                  }}
-                                  className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
+                                <Link
+                                  href={`/school-admin/attendance/mark?class=${record.id}`}
+                                  onClick={() => setOpenMenuId(null)}
+                                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
                                 >
                                   <svg className="w-3.5 h-3.5 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                                   </svg>
                                   Edit Attendance
-                                </button>
+                                </Link>
                                 <div className="border-t border-[var(--border)]" />
                                 <button
                                   onClick={() => {
