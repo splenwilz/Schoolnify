@@ -1,0 +1,934 @@
+================================================================================
+  SCHOOLNIFY — BURSAR DASHBOARD
+  Feature Guide & Review Document
+================================================================================
+
+Hello! This document describes everything the Bursar Dashboard currently
+covers in the Schoolnify platform. Please read through and let us know
+what's missing, what needs changing, or what flows don't match your
+day-to-day work.
+
+
+================================================================================
+  TABLE OF CONTENTS
+================================================================================
+
+  1.  What Is the Bursar Dashboard?
+  2.  How You Access It
+  3.  Navigation & Layout
+  4.  Dashboard Overview (Home Screen)
+  5.  Fee Structure Management
+  6.  Invoices & Billing
+  7.  Payments
+  8.  Expenses & Budget
+  9.  Payroll
+  10. Financial Reports
+  11. Settings & Configuration
+  12. Day-to-Day Workflows (Step-by-Step)
+  13. Data Currently in the System (Demo)
+  14. Questions for You
+
+
+================================================================================
+  1. WHAT IS THE BURSAR DASHBOARD?
+================================================================================
+
+The Bursar Dashboard is a dedicated workspace for the school bursar
+(financial officer). It is separate from the School Admin dashboard —
+the school admin has their own finance overview, but your dashboard
+gives you deeper control over:
+
+  - Fee structures and discounts
+  - Invoice generation and tracking
+  - Payment collection and recording
+  - Expense tracking and budget monitoring
+  - Staff payroll processing
+  - Financial reporting and audit trails
+  - Financial system settings
+
+You have your own login, your own sidebar, and your own set of pages.
+The school admin cannot see or change your settings, and you cannot
+access school admin features like student enrollment or class management.
+
+There is a "Switch to Admin" button in the sidebar if you also need
+access to the school admin view.
+
+
+================================================================================
+  2. HOW YOU ACCESS IT
+================================================================================
+
+  URL:      /bursar
+  Login:    Your own bursar credentials
+  Role:     Bursar (shown as a gold badge in the sidebar)
+
+Once logged in, you land on the Dashboard Overview page. All finance
+pages are accessible from the left sidebar.
+
+
+================================================================================
+  3. NAVIGATION & LAYOUT
+================================================================================
+
+The screen is split into two parts:
+
+  LEFT SIDEBAR (always visible on desktop, toggleable on mobile):
+  ┌─────────────────────────┐
+  │  Schoolnify Logo        │
+  │  "Bursar Dashboard"     │
+  │                         │
+  │  FINANCE                │
+  │  ● Dashboard            │
+  │  ● Fee Management       │
+  │  ● Invoices             │
+  │  ● Payments             │
+  │  ● Expenses             │
+  │  ● Payroll              │
+  │  ● Reports              │
+  │                         │
+  │  SYSTEM                 │
+  │  ● Settings             │
+  │                         │
+  │  ─────────────────────  │
+  │  Patricia Okafor        │
+  │  Bursar                 │
+  │  [Switch to Admin]      │
+  └─────────────────────────┘
+
+  RIGHT SIDE: Main content area with a top header bar and the
+  active page content below.
+
+On mobile, the sidebar is hidden behind a hamburger menu button.
+Tapping outside the sidebar closes it.
+
+
+================================================================================
+  4. DASHBOARD OVERVIEW (Home Screen)
+================================================================================
+
+This is the first thing you see when you log in. It gives you an
+at-a-glance view of the school's financial health.
+
+The page has 6 tabs you can switch between without leaving the page:
+  Overview | Fee Structure | Invoices | Expenses | Payroll | Reports
+
+Below is what each section of the Overview tab shows:
+
+── 4.1 FINANCIAL HEALTH BANNER ──
+
+  A card on the left side showing:
+  - "Financial Overview" title
+  - Health status badge:
+      Green  "On Track"        if collection rate is 80% or above
+      Amber  "Needs Attention" if collection rate is 60–79%
+      Red    "Critical"        if collection rate is below 60%
+  - A semicircle gauge showing the collection rate (currently 84.75%)
+  - Total Collected amount (e.g. $847.5K)
+  - Total Outstanding amount (e.g. $152.5K)
+  - Current term label (Spring Term 2026)
+
+── 4.2 KEY METRIC CARDS ──
+
+  Three cards on the right side:
+
+  Card 1 — This Month Collected
+    Shows the amount collected this month ($125,000)
+    A sparkline chart showing the collection trend
+    Target comparison ("of $100K target")
+
+  Card 2 — Outstanding Balance
+    Shows total outstanding ($152,500)
+    A sparkline chart showing the trend
+    Number of overdue accounts (23)
+
+  Card 3 — Overdue Accounts
+    Shows the count (23)
+    A progress ring showing overdue as % of total accounts
+    Total accounts for reference (1,247)
+
+── 4.3 ALERTS & NOTIFICATIONS ──
+
+  Between the top cards and the charts, you'll see dismissible
+  notification banners for things that need your attention:
+
+  - "Fee deadline in X days" — warns when student payments are
+    due within the next 7 days, shows how many students are affected
+  - "Monthly payroll processing due in 3 days" — reminds you to
+    review and approve payroll before the deadline
+  - "Scholarship renewals due next week" — tells you how many
+    students need scholarship re-evaluation
+
+  Each alert has an X button to dismiss it. They only show things
+  NOT already visible in the cards above (no repetition).
+
+── 4.4 REVENUE TREND CHART ──
+
+  A line chart showing collected vs outstanding revenue over time.
+  You can toggle between:
+    - 6 Months
+    - 1 Year
+    - All Time
+
+  Shows month-by-month data with smooth curves. Green line = collected,
+  amber line = outstanding. Hover-friendly data points.
+
+── 4.5 FEE TYPE BREAKDOWN ──
+
+  A stacked horizontal bar chart showing how fees break down
+  by type each month:
+    - Tuition (teal)
+    - Activity (purple)
+    - Supplies (amber)
+
+  Shows September through January with monthly totals.
+
+── 4.6 RECENT TRANSACTIONS TABLE ──
+
+  A full table of recent financial transactions. Features:
+
+  Filters:
+    - Status pills: All / Completed / Pending / Overdue (with counts)
+    - Search box: search by student name or transaction ID
+    - Type dropdown: All Types / Tuition / Activity / Supplies
+
+  Table columns:
+    - Checkbox (for bulk selection)
+    - Transaction ID
+    - Student Name (sortable)
+    - Fee Type (color-coded badge)
+    - Amount (sortable)
+    - Status (color-coded: green/amber/red)
+    - Date (sortable)
+    - Payment Method
+    - Actions menu (three dots)
+
+  Actions per transaction:
+    - View Details
+    - Send Reminder
+    - Download Receipt
+
+  Pagination: 5 transactions per page, Previous/Next buttons
+
+── 4.7 SIDEBAR CARDS ──
+
+  On the right side of the transactions table:
+
+  Upcoming Payments:
+    - List of students with upcoming due dates
+    - Color-coded urgency (red = <5 days, amber = 5-10 days, green = 10+ days)
+    - Shows student name, due date, amount
+    - "View All" link at bottom
+
+  Accepted Payment Methods:
+    - Credit Card (Visa, Mastercard, Amex)
+    - Bank Transfer (Direct deposit & wire)
+    - Mobile Money (M-Pesa, MTN, Airtel)
+
+  Quick Actions:
+    - Generate Invoices
+    - Run Payroll
+    - Send Reminders
+    - View Reports
+
+
+================================================================================
+  5. FEE STRUCTURE MANAGEMENT
+================================================================================
+
+  Accessible from: Dashboard > Fee Structure tab, OR sidebar > Fee Management
+
+── 5.1 SUMMARY CARDS ──
+
+  Card 1 — Fee Categories (6 total)
+    Mini donut showing mandatory vs optional split
+    Footer: "4 mandatory | 2 optional"
+
+  Card 2 — Active Fees (6 of 6)
+    Progress bar showing activation rate (100%)
+
+  Card 3 — Expected Revenue
+    Total projected revenue (compact, e.g. $6.2M)
+    Growth indicator (+8.2% vs last term)
+    Top 3 fee types as breakdown bars with percentages
+
+  Card 4 — Discounts (5 available)
+    Stacked circles showing discount type initials
+    Footer: total beneficiaries + estimated savings
+
+── 5.2 FEE CATEGORIES TABLE ──
+
+  Search and filter:
+    - Search by category name
+    - Filter by frequency (All / Per Term / Annual)
+    - "Add Category" button
+
+  Current fee categories:
+
+  ┌──────────────────┬──────────────────────────────┬────────┬──────────────┬───────────┬──────────┐
+  │ Category         │ Description                  │ Grades │ Amount Range │ Frequency │ Required │
+  ├──────────────────┼──────────────────────────────┼────────┼──────────────┼───────────┼──────────┤
+  │ Tuition Fee      │ Core academic tuition        │ 5–12   │ $2,500–$3,500│ Per Term  │ Yes      │
+  │ Activity Fee     │ Extracurricular activities   │ 5–12   │ $150–$200   │ Per Term  │ No       │
+  │ Supplies Fee     │ Lab materials and stationery │ 5–12   │ $75–$150    │ Per Term  │ Yes      │
+  │ Transport Fee    │ School bus service           │ 5–12   │ $350 (flat) │ Per Term  │ No       │
+  │ Exam Fee         │ Examination and assessments  │ 5–12   │ $100–$300   │ Per Term  │ Yes      │
+  │ Technology Fee   │ Computer lab and digital     │ 5–12   │ $80–$150    │ Annual    │ Yes      │
+  └──────────────────┴──────────────────────────────┴────────┴──────────────┴───────────┴──────────┘
+
+  Clicking any row expands it to show the exact amount for each grade:
+    Grade 5: $X | Grade 6: $X | ... | Grade 12: $X
+
+── 5.3 DISCOUNTS & SCHOLARSHIPS ──
+
+  Card grid showing each discount/scholarship:
+
+  ┌──────────────────────┬──────────┬───────────┬──────────────────────────────┬──────────────┐
+  │ Name                 │ Value    │ Applies To│ Eligibility                  │ Beneficiaries│
+  ├──────────────────────┼──────────┼───────────┼──────────────────────────────┼──────────────┤
+  │ Sibling Discount     │ 10%      │ Tuition   │ Students with siblings       │ 34           │
+  │ Early Payment        │ 5%       │ All fees  │ Payment before due date      │ 156          │
+  │ Staff Child Waiver   │ 50%      │ Tuition   │ Children of school staff     │ 12           │
+  │ Merit Scholarship    │ $500     │ Tuition   │ GPA above 3.8               │ 28           │
+  │ Financial Aid        │ 25%      │ All fees  │ Demonstrated financial need  │ 45           │
+  └──────────────────────┴──────────┴───────────┴──────────────────────────────┴──────────────┘
+
+  "Add Discount" button to create new discounts.
+
+
+================================================================================
+  6. INVOICES & BILLING
+================================================================================
+
+  Accessible from: Dashboard > Invoices tab, OR sidebar > Invoices
+
+── 6.1 SUMMARY CARDS ──
+
+  Card 1 — Total Invoiced
+    Total value of all invoices
+    Mini donut chart showing status breakdown (paid/pending/overdue/draft)
+    Footer legend showing counts per status
+
+  Card 2 — Collected
+    Total paid amount
+    Collection rate progress bar with percentage
+    Average days to collect metric
+
+  Card 3 — Pending
+    Total pending amount
+    Progress ring showing pending proportion
+    Invoice count awaiting payment
+    Total discounts applied across all invoices
+
+  Card 4 — Overdue
+    Total overdue amount
+    "At Risk" urgency badge
+    Red progress bar showing overdue as % of total
+
+── 6.2 INVOICE TABLE ──
+
+  Filters:
+    - Status tabs: All / Paid / Pending / Overdue / Draft (with counts)
+    - Search by student name, invoice number, or parent name
+    - Grade filter dropdown
+
+  Table columns:
+    - Invoice Number (e.g. INV-2026-001)
+    - Student Name + Grade
+    - Parent/Guardian Name
+    - Number of Line Items
+    - Subtotal
+    - Discount (name + amount, if any)
+    - Total (bold)
+    - Status (color-coded badge)
+    - Due Date
+    - Actions menu
+
+  Actions per invoice:
+    - View Invoice (opens detail panel)
+    - Download PDF
+    - Send Reminder
+
+── 6.3 INVOICE DETAIL PANEL ──
+
+  When you click "View Invoice", a slide-over panel opens from the right
+  side of the screen showing:
+
+  1. Invoice number and status badge
+  2. Student info: name, grade, parent/guardian
+  3. Line items table:
+       Description                    Amount
+       ─────────────────────────────  ──────
+       Tuition Fee — Term 2          $2,800
+       Activity Fee — Term 2           $175
+       Supplies Fee — Term 2           $100
+  4. Totals:
+       Subtotal:                      $3,075
+       Discount (Early Payment):       -$154
+       TOTAL:                         $2,921
+  5. Payment info (if paid): method, date
+  6. Dates: issued, due
+  7. Buttons: Download PDF, Send Reminder, Close
+
+  Currently 10 invoices in the system:
+    - 5 paid, 2 pending, 2 overdue, 1 draft
+    - Amounts range from $2,750 to $3,950
+
+
+================================================================================
+  7. PAYMENTS
+================================================================================
+
+  Accessible from: sidebar > Payments (dedicated page at /bursar/payments)
+
+── 7.1 SUMMARY CARDS ──
+
+  - Total Collected: $847,500 of $1,000,000 expected
+  - Outstanding: $152,500 with 23 overdue accounts
+  - This Month: $125,000 collected in January
+  - Collection Rate: 84.75% (animated ring gauge)
+
+── 7.2 PAYMENT TABLE ──
+
+  Filters:
+    - Status tabs: All / Completed / Pending / Overdue
+    - Search by student name or transaction ID
+    - Type filter: All / Tuition / Activity / Supplies
+    - Method filter: All / Credit Card / Bank Transfer / Cash / Pending
+
+  Table columns:
+    - Checkbox (bulk select)
+    - Transaction ID
+    - Student Name (sortable)
+    - Fee Type (badge)
+    - Amount (sortable)
+    - Status (badge)
+    - Date (sortable)
+    - Payment Method
+    - Actions menu
+
+  Actions: View, Send Reminder, Download Receipt
+  Pagination: 5 per page
+
+── 7.3 UPCOMING PAYMENTS SIDEBAR ──
+
+  Shows students with upcoming payment due dates:
+
+    Liam Johnson     — $2,500 tuition  — due in 3 days   (RED)
+    Noah Davis       — $2,500 tuition  — due in 7 days   (AMBER)
+    Charlotte Thomas — $2,500 tuition  — due in 12 days  (GREEN)
+    Ethan Miller     — $150 activity   — due in 14 days  (GREEN)
+    Isabella Anderson— $75 supplies    — due in 17 days  (GREEN)
+
+  "Send All Reminders" button at the bottom.
+
+── 7.4 ACTIONS AVAILABLE ──
+
+  - Record Payment (button in header)
+  - Export payment data
+  - Send individual or bulk reminders
+  - Download receipts
+  - View transaction details
+
+
+================================================================================
+  8. EXPENSES & BUDGET
+================================================================================
+
+  Accessible from: Dashboard > Expenses tab, OR sidebar > Expenses
+
+── 8.1 BUDGET SUMMARY CARDS ──
+
+  - Total Budget:  $2,800,000 (FY 2025–2026)
+  - Total Spent:   $274,000 (9.8% of budget)
+  - Committed:     $21,700 (pending approval)
+  - Remaining:     $2,504,300 (89.4%)
+
+── 8.2 BUDGET ALLOCATION BY CATEGORY ──
+
+  Horizontal progress bars showing spent vs budget per category:
+
+  ┌───────────────────────┬────────────┬──────────┬─────────┐
+  │ Category              │ Budget     │ Spent    │ % Used  │
+  ├───────────────────────┼────────────┼──────────┼─────────┤
+  │ Salaries & Benefits   │ $2,200,000 │ $185,000 │ 8.4%    │
+  │ Supplies & Materials  │ $180,000   │ $31,000  │ 17.2%   │
+  │ Utilities             │ $120,000   │ $11,000  │ 9.2%    │
+  │ Maintenance & Security│ $95,000    │ $12,000  │ 12.6%   │
+  │ Technology            │ $85,000    │ $22,100  │ 26.0%   │
+  │ Transport             │ $75,000    │ $4,200   │ 5.6%    │
+  │ Events & Activities   │ $45,000    │ $8,700   │ 19.3%   │
+  └───────────────────────┴────────────┴──────────┴─────────┘
+
+── 8.3 SPENDING DISTRIBUTION CHART ──
+
+  A donut chart showing the proportion of spending per category,
+  with a legend and amounts.
+
+── 8.4 EXPENSES TABLE ──
+
+  Filters:
+    - Status tabs: All / Approved / Pending
+    - Search by description or vendor name
+    - Category dropdown with all 7 categories
+    - "Add Expense" button
+
+  Table columns:
+    - Description
+    - Category (color-coded badge)
+    - Amount (sortable)
+    - Date (sortable)
+    - Vendor
+    - Approved By
+    - Status (Approved / Pending)
+    - Receipt Reference number
+
+  12 expenses currently in the system, including:
+    - Staff salaries: $185,000 (Internal Payroll)
+    - Lab equipment: $8,500 (LabEquip Inc.)
+    - Electricity: $4,200 (City Power Co.)
+    - Building repairs: $12,000 (FixIt Contractors)
+    - Software licenses: $3,600 (EduTech Solutions)
+    - And others
+
+
+================================================================================
+  9. PAYROLL
+================================================================================
+
+  Accessible from: Dashboard > Payroll tab, OR sidebar > Payroll
+
+── 9.1 SUMMARY CARDS ──
+
+  - Gross Payroll:    $52,167 (January 2026)
+  - Total Deductions: $12,253 (across 10 staff)
+  - Net Payroll:      $39,413 (January 2026)
+  - Staff Count:      10 (next pay: Feb 28)
+
+── 9.2 SALARY BY DEPARTMENT CHART ──
+
+  A vertical bar chart showing monthly gross salary distribution
+  by department:
+    - Mathematics
+    - Administration
+    - English
+    - Science
+    - History
+    - Student Services
+
+── 9.3 DEDUCTIONS BREAKDOWN ──
+
+  Three progress bars showing deduction components:
+    - Tax:       amount and % of gross
+    - Pension:   amount and % of gross
+    - Insurance: amount and % of gross
+
+  Summary metrics:
+    - Average deduction per staff member
+    - Overall deduction rate
+
+── 9.4 STAFF PAYROLL TABLE ──
+
+  Search by staff name, filter by department.
+
+  Table columns:
+    - Staff Name (sortable)
+    - Role / Job Title
+    - Department (color-coded badge)
+    - Base Salary (annual, sortable)
+    - Monthly Gross
+    - Deductions (in red)
+    - Net Pay (in green, sortable)
+    - Status ("Paid")
+    - "Payslip" button (appears on hover)
+
+  10 staff members currently:
+    - Sarah Williams — Principal — $95,000/year
+    - James Thompson — VP Operations — $78,000/year
+    - Emily Chen — Senior Math Teacher — $65,000/year
+    - And 7 others across various departments
+
+  Footer shows filtered count and total net pay.
+
+── 9.5 PAYSLIP DETAIL ──
+
+  Clicking "Payslip" on any staff row opens a full-screen modal:
+
+  ┌─────────────────────────────────────────────┐
+  │  PAYSLIP — January 2026                     │
+  │  Employee: Emily Chen                       │
+  │                                             │
+  │  Name:       Emily Chen                     │
+  │  Role:       Senior Teacher                 │
+  │  Department: Mathematics                    │
+  │                                             │
+  │  EARNINGS                                   │
+  │  Base Salary (Monthly):    $5,417           │
+  │  Monthly Gross:            $5,417           │
+  │                                             │
+  │  DEDUCTIONS                                 │
+  │  Tax:                      $812             │
+  │  Pension:                  $325             │
+  │  Insurance:                $150             │
+  │  Total Deductions:        -$1,287           │
+  │                                             │
+  │  ═══════════════════════════════════════     │
+  │  NET PAY:                  $4,130           │
+  │  ═══════════════════════════════════════     │
+  │                                             │
+  │  Payment Method: Bank Transfer              │
+  │  Paid Date:      Jan 30, 2026               │
+  │  Status:         Paid                       │
+  │                                             │
+  │  [Download Payslip]  [Print]  [Close]       │
+  └─────────────────────────────────────────────┘
+
+  Download generates a .txt file with all details.
+  Print opens the browser's print dialog.
+
+
+================================================================================
+  10. FINANCIAL REPORTS
+================================================================================
+
+  Accessible from: Dashboard > Reports tab, OR sidebar > Reports
+
+  Four report types, selected from a card grid:
+
+── 10.1 COLLECTION SUMMARY REPORT ──
+
+  KPI cards:
+    - Total Collected: $847,500
+    - Collection Rate: 84.75%
+    - Outstanding: $152,500
+
+  Collection by Grade:
+    Horizontal stacked bars for each grade (5–12) showing
+    collected (green) vs outstanding (amber) amounts.
+
+  Monthly Collection Trend:
+    Line chart with gradient fill showing collection amounts
+    over the months.
+
+── 10.2 REVENUE & EXPENSES REPORT ──
+
+  KPI cards:
+    - Total Revenue:  $847,500
+    - Total Expenses: $274,000
+    - Net Income:     $573,500
+    - Expense Ratio:  32.3%
+
+  Revenue vs Expenses Chart:
+    Dual-area SVG chart — green for revenue, red for expenses.
+
+  Monthly Breakdown Table:
+    Month | Revenue | Expenses | Net      | Margin
+    ──────┼─────────┼──────────┼──────────┼────────
+    Sep   | $...    | $...     | $... (+) | ...%
+    Oct   | $...    | $...     | $... (+) | ...%
+    ...etc
+
+── 10.3 OUTSTANDING FEES REPORT ──
+
+  KPI cards:
+    - Total Outstanding: $152,500
+    - Overdue Accounts:  96
+    - Collection Rate:   84.75%
+
+  Aging Analysis (how long fees have been outstanding):
+    ┌──────────────┬──────────┬──────────┐
+    │ Aging Bucket │ Accounts │ Amount   │
+    ├──────────────┼──────────┼──────────┤
+    │ 0–30 days    │ 45       │ $68,000  │
+    │ 31–60 days   │ 28       │ $42,500  │
+    │ 61–90 days   │ 15       │ $27,000  │
+    │ 90+ days     │ 8        │ $15,000  │
+    └──────────────┴──────────┴──────────┘
+
+  Outstanding by Grade:
+    Horizontal bars per grade showing outstanding amounts.
+
+── 10.4 AUDIT TRAIL REPORT ──
+
+  A complete log of every financial action taken in the system.
+
+  Filters:
+    - Search audit entries
+    - Filter by entity type: Invoice / Expense / Payroll / Fee / Budget
+    - "Download Log" button
+
+  Timeline entries show:
+    - What action was taken (e.g. "Payment of $2,921.25 received
+      for invoice INV-2026-001")
+    - Who did it (e.g. "Patricia Okafor")
+    - When (e.g. "Jan 15, 2026 at 10:30 AM")
+    - What type of entity it relates to (Invoice, Expense, etc.)
+
+  Action types tracked:
+    - Payment received
+    - Invoice generated
+    - Expense approved / submitted
+    - Payroll processed
+    - Fee structure updated
+    - Discount applied
+    - Reminder sent
+    - Budget updated
+
+  15 audit entries in the demo system.
+
+
+================================================================================
+  11. SETTINGS & CONFIGURATION
+================================================================================
+
+  Accessible from: sidebar > Settings
+
+── 11.1 GENERAL SETTINGS ──
+
+  - School Fiscal Year:     2025–2026 (selectable)
+  - Currency:               USD (options: USD, GBP, NGN, EUR)
+  - Date Format:            MM/DD/YYYY (or DD/MM/YYYY or YYYY-MM-DD)
+  - Academic Terms:         Term 1 (Sep–Dec), Term 2 (Jan–Mar), Term 3 (Apr–Jul)
+
+── 11.2 PAYMENT SETTINGS ──
+
+  Accepted Payment Methods (toggle each on/off):
+    ☑ Credit/Debit Card
+    ☑ Bank Transfer
+    ☑ Mobile Money
+    ☑ Cash
+
+  Payment Gateway:          Paystack (options: Flutterwave, Stripe, Manual Only)
+  Auto-generate Receipts:   ON
+  Late Payment Penalty:     ON
+    → Penalty Type:         Percentage (or Fixed Amount)
+    → Penalty Value:        5%
+    → Grace Period:         7 days
+
+── 11.3 INVOICE SETTINGS ──
+
+  Invoice Prefix:           INV
+  Next Invoice Number:      2026-011 (auto-incremented)
+  Auto-send Invoices:       ON (email on generation)
+  Invoice Due Period:       30 days
+  Invoice Footer Text:      "Payment is due within 30 days. Late payments
+                            may incur additional charges."
+
+── 11.4 NOTIFICATION SETTINGS ──
+
+  Payment Reminders:        ON
+    → Remind X days before due: 7, 3, 1 (configurable chips)
+    → Channels: ☑ Email  ☑ SMS  ☑ In-App
+
+  Overdue Notifications:    ON
+    → Frequency: Weekly (options: Daily, Bi-weekly)
+
+  Payment Confirmations:    ON
+    → Send to: ☑ Parent  ☐ Student  ☑ Bursar
+
+── 11.5 BUDGET SETTINGS ──
+
+  Fiscal Year Budget:       $2,800,000 (editable)
+  Budget Alert Threshold:   80% (alert when a category reaches this % spent)
+  Require Approval For:     Expenses over $5,000
+                            (options: over $1K, over $5K, over $10K, all)
+
+
+================================================================================
+  12. DAY-TO-DAY WORKFLOWS (Step by Step)
+================================================================================
+
+Below are the main things you'd do on a typical day/week/month and
+how the dashboard supports each one.
+
+── FLOW 1: Morning Check-In — Monitor Financial Health ──
+
+  1. Log in → land on Dashboard Overview
+  2. Glance at the health badge (On Track / Needs Attention / Critical)
+  3. Check the three KPI cards for collected, outstanding, and overdue
+  4. Read any alert banners (upcoming deadlines, payroll reminders)
+  5. Dismiss alerts you've already handled
+  6. Review the revenue trend chart — toggle to 6M or 1Y for context
+  7. Check the upcoming payments sidebar for anything due this week
+
+── FLOW 2: Set Up or Adjust Fees for a New Term ──
+
+  1. Go to Fee Management (sidebar) or Fee Structure tab
+  2. Review existing fee categories and amounts per grade
+  3. Click any category row to expand and see grade-by-grade pricing
+  4. Click "Add Category" to create a new fee type
+  5. Set the frequency (Per Term or Annual), mark as mandatory or optional
+  6. Set amounts per grade level
+  7. Review discounts — add new ones or adjust existing eligibility
+
+── FLOW 3: Generate and Send Invoices ──
+
+  1. Go to Invoices (sidebar) or Invoices tab
+  2. Click "Generate Invoice" to create new invoices
+  3. Select students, fee items, and applicable discounts
+  4. Review the invoice preview (line items, subtotal, discounts, total)
+  5. Auto-send is ON by default — invoices are emailed to parents
+  6. Track invoice status in the table (Paid / Pending / Overdue / Draft)
+  7. Click any invoice to open the detail panel and review
+  8. Use "Send Reminder" for unpaid invoices
+
+── FLOW 4: Record and Track Payments ──
+
+  1. Go to Payments (sidebar)
+  2. Click "Record Payment" to enter a new payment
+  3. Use filters to find specific transactions (by status, type, method)
+  4. Check the upcoming payments sidebar for due dates
+  5. Select multiple transactions and send bulk reminders
+  6. Download receipts for completed payments
+  7. Review the collection rate gauge to see progress
+
+── FLOW 5: Track Expenses and Monitor Budget ──
+
+  1. Go to Expenses (sidebar) or Expenses tab
+  2. Review budget summary cards (total, spent, committed, remaining)
+  3. Check category-by-category budget bars — are any approaching limits?
+  4. View the spending distribution donut chart for proportions
+  5. Click "Add Expense" to record a new expense
+  6. Filter the expense table by status or category
+  7. Track pending expenses awaiting approval
+  8. Budget alerts will trigger when spending reaches the threshold (80%)
+
+── FLOW 6: Process Monthly Payroll ──
+
+  1. Go to Payroll (sidebar) or Payroll tab
+  2. Review summary: gross payroll, deductions, net payroll
+  3. Check the department salary chart for distribution
+  4. Review deductions breakdown (tax, pension, insurance)
+  5. Search/filter staff if needed
+  6. Click "Payslip" on any staff row to review their payslip
+  7. Download or print individual payslips
+  8. Click "Run Payroll" to process the current month
+  9. System records the payment and updates the audit trail
+
+── FLOW 7: Generate End-of-Term/Month Reports ──
+
+  1. Go to Reports (sidebar) or Reports tab
+  2. Select the report type you need:
+     - Collection Summary — for fee collection overview
+     - Revenue & Expenses — for income vs spending analysis
+     - Outstanding Fees — for overdue accounts and aging
+     - Audit Trail — for a complete activity log
+  3. Review the report's KPI cards, charts, and tables
+  4. For Audit Trail, filter by entity type or search specific entries
+  5. Click "Export All" or "Download Log" to save as a file
+  6. Share the report with school administration
+
+── FLOW 8: Configure System Settings ──
+
+  1. Go to Settings (sidebar)
+  2. Adjust fiscal year, currency, or date format as needed
+  3. Enable/disable payment methods or change gateway
+  4. Configure late payment penalty rules
+  5. Set invoice numbering and auto-send preferences
+  6. Configure payment reminder schedule (which days, which channels)
+  7. Set budget alert thresholds and approval rules
+  8. Click "Save Changes"
+
+
+================================================================================
+  13. DATA CURRENTLY IN THE SYSTEM (Demo)
+================================================================================
+
+This is demo/sample data used for development. In production,
+all of this will be real data from the school.
+
+  Bursar User:
+    Name:       Patricia Okafor
+    Email:      p.okafor@greenwoodacademy.edu
+    Role:       Bursar
+    Last Login: Feb 22, 2026
+
+  Financial Summary:
+    Total Expected:     $1,000,000
+    Total Collected:    $847,500
+    Outstanding:        $152,500
+    Collection Rate:    84.75%
+    This Month:         $125,000
+    Overdue Accounts:   23
+    Total Students:     1,247
+
+  Budget:
+    Total Budget:       $2,800,000
+    Total Spent:        $274,000
+    Remaining:          $2,504,300
+
+  Payroll:
+    Staff Count:        10
+    Monthly Gross:      $52,167
+    Monthly Net:        $39,413
+
+  Invoices:             10 (5 paid, 2 pending, 2 overdue, 1 draft)
+  Expenses:             12 entries
+  Fee Categories:       6
+  Discounts:            5
+  Audit Trail Entries:  15
+
+
+================================================================================
+  14. QUESTIONS FOR YOU
+================================================================================
+
+Please review the above and let us know:
+
+  1. Are there any financial processes you do daily/weekly that
+     are NOT covered here?
+
+  2. Is the fee structure setup correct? Do you need more
+     granularity (e.g., per-class instead of per-grade)?
+
+  3. Are there additional fee types we're missing?
+
+  4. Do you need more discount/scholarship types? Are the
+     eligibility criteria fields sufficient?
+
+  5. Is the invoice format correct? Do you need additional
+     fields (e.g., payment plan installments, partial payments)?
+
+  6. Are the payment methods listed the ones you actually accept?
+     Are there others (e.g., cheque, POS terminal)?
+
+  7. For expenses, do you need approval workflows (e.g., submit →
+     review → approve → pay)? Or is the current status
+     (Approved / Pending) sufficient?
+
+  8. For payroll, do you handle allowances, bonuses, or overtime
+     in addition to base salary? Do deduction types need to be
+     more detailed?
+
+  9. Are there reports you regularly generate that aren't listed
+     here (e.g., bank reconciliation, tax filings, term-end
+     summaries for the board)?
+
+  10. For the audit trail, is the level of detail sufficient?
+      Do you need to track who viewed records (not just who
+      changed them)?
+
+  11. Are there any integrations you need (e.g., with a banking
+      platform, government tax system, or accounting software)?
+
+  12. Do parents currently make partial payments or payment
+      plans? If so, how should we track installments?
+
+  13. Is there anything about the notification system you'd
+      change (timing, channels, who receives what)?
+
+  14. Any other feedback on the overall layout, navigation,
+      or missing features?
+
+
+================================================================================
+  END OF DOCUMENT
+================================================================================
+
+  Document prepared for review by the Bursar team.
+  All features described are currently built and functional
+  in the development environment using demo data.
+
+  For questions or feedback, please share your notes and we
+  will incorporate your input into the next iteration.
+
+================================================================================
