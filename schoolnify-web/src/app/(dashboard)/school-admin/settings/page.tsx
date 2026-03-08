@@ -8,13 +8,6 @@
 
 import { useState } from "react";
 import { schoolInfo, currentUser } from "@/lib/demo-data";
-import { useSchoolConfig } from "@/lib/school-config-context";
-import {
-  CLASS_NAMING_TEMPLATES,
-  formatGradeCode,
-  formatGradeCodeWithRules,
-  type LevelRule,
-} from "@/lib/class-naming";
 
 // Settings tabs
 const tabs = [
@@ -33,19 +26,9 @@ export default function SettingsPage() {
     phone: schoolInfo.phone,
     address: schoolInfo.address,
     website: schoolInfo.website,
-    academicYear: schoolInfo.academicYear,
-    currentTerm: schoolInfo.currentTerm,
+    mission: "",
+    vision: "",
   });
-
-  const {
-    templateId,
-    setTemplateId,
-    customRules,
-    setCustomRules,
-    sections,
-    setSections,
-  } = useSchoolConfig();
-  const [newSection, setNewSection] = useState("");
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -177,275 +160,27 @@ export default function SettingsPage() {
                       className="w-full px-3 py-2 text-sm bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[#0891B2]"
                     />
                   </div>
-                </div>
-              </div>
-
-              {/* Academic Settings */}
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-6">
-                <h2 className="text-lg font-semibold text-[var(--foreground)] mb-4">Academic Settings</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">Academic Year</label>
-                    <input
-                      type="text"
-                      name="academicYear"
-                      value={formData.academicYear}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 text-sm bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[#0891B2]"
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">Mission Statement</label>
+                    <textarea
+                      name="mission"
+                      value={formData.mission}
+                      onChange={(e) => setFormData({ ...formData, mission: e.target.value })}
+                      rows={2}
+                      placeholder="What your school aims to achieve"
+                      className="w-full px-3 py-2 text-sm bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#0891B2] resize-none"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">Current Term</label>
-                    <input
-                      type="text"
-                      name="currentTerm"
-                      value={formData.currentTerm}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 text-sm bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[#0891B2]"
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">Vision Statement</label>
+                    <textarea
+                      name="vision"
+                      value={formData.vision}
+                      onChange={(e) => setFormData({ ...formData, vision: e.target.value })}
+                      rows={2}
+                      placeholder="Your school's long-term aspiration"
+                      className="w-full px-3 py-2 text-sm bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#0891B2] resize-none"
                     />
-                  </div>
-                </div>
-              </div>
-
-              {/* Class Naming Format */}
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-6">
-                <h2 className="text-lg font-semibold text-[var(--foreground)] mb-1">Class Naming Format</h2>
-                <p className="text-sm text-[var(--muted)] mb-4">
-                  Start from a preset, then customize prefixes, level ranges, and sections to match your school
-                </p>
-
-                {/* Preset Templates */}
-                <div className="mb-6">
-                  <label className="block text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2">
-                    Start from preset
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {CLASS_NAMING_TEMPLATES.map((template) => (
-                      <button
-                        key={template.id}
-                        onClick={() => setTemplateId(template.id)}
-                        className={`px-3 py-1.5 text-sm rounded-lg border transition-all ${
-                          templateId === template.id
-                            ? "border-[#0891B2] bg-[#0891B2]/10 text-[#0891B2] font-medium"
-                            : "border-[var(--border)] text-[var(--foreground-secondary)] hover:border-[var(--muted)]"
-                        }`}
-                      >
-                        {template.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Editable Rules Table */}
-                <div className="mb-6">
-                  <label className="block text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2">
-                    Level groups
-                  </label>
-                  <div className="space-y-2">
-                    {customRules.map((rule, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-2 p-3 rounded-lg border border-[var(--border)] bg-[var(--background-secondary)]"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <label className="block text-[10px] text-[var(--muted)] mb-1">Prefix</label>
-                          <input
-                            type="text"
-                            value={rule.prefix}
-                            onChange={(e) => {
-                              const updated = [...customRules];
-                              updated[index] = { ...rule, prefix: e.target.value };
-                              setCustomRules(updated);
-                            }}
-                            className="w-full px-2.5 py-1.5 text-sm bg-[var(--card)] border border-[var(--border)] rounded-md text-[var(--foreground)] focus:outline-none focus:border-[#0891B2]"
-                            placeholder="e.g. Grade"
-                          />
-                        </div>
-                        <div className="w-20">
-                          <label className="block text-[10px] text-[var(--muted)] mb-1">From level</label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={20}
-                            value={rule.minLevel}
-                            onChange={(e) => {
-                              const updated = [...customRules];
-                              const minLevel = Math.max(1, parseInt(e.target.value) || 1);
-                              updated[index] = { ...rule, minLevel };
-                              setCustomRules(updated);
-                            }}
-                            className="w-full px-2.5 py-1.5 text-sm bg-[var(--card)] border border-[var(--border)] rounded-md text-[var(--foreground)] focus:outline-none focus:border-[#0891B2]"
-                          />
-                        </div>
-                        <div className="w-20">
-                          <label className="block text-[10px] text-[var(--muted)] mb-1">To level</label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={20}
-                            value={rule.maxLevel}
-                            onChange={(e) => {
-                              const updated = [...customRules];
-                              const maxLevel = Math.max(1, parseInt(e.target.value) || 1);
-                              updated[index] = { ...rule, maxLevel };
-                              setCustomRules(updated);
-                            }}
-                            className="w-full px-2.5 py-1.5 text-sm bg-[var(--card)] border border-[var(--border)] rounded-md text-[var(--foreground)] focus:outline-none focus:border-[#0891B2]"
-                          />
-                        </div>
-                        <div className="w-20">
-                          <label className="block text-[10px] text-[var(--muted)] mb-1">Starts at</label>
-                          <input
-                            type="number"
-                            min={0}
-                            max={20}
-                            value={rule.minLevel - rule.levelOffset}
-                            onChange={(e) => {
-                              const updated = [...customRules];
-                              const displayStart = Math.max(1, parseInt(e.target.value) || 1);
-                              updated[index] = {
-                                ...rule,
-                                levelOffset: rule.minLevel - displayStart,
-                              };
-                              setCustomRules(updated);
-                            }}
-                            className="w-full px-2.5 py-1.5 text-sm bg-[var(--card)] border border-[var(--border)] rounded-md text-[var(--foreground)] focus:outline-none focus:border-[#0891B2]"
-                          />
-                        </div>
-                        {customRules.length > 1 && (
-                          <button
-                            onClick={() => {
-                              setCustomRules(customRules.filter((_, i) => i !== index));
-                            }}
-                            className="self-end mb-0.5 p-1.5 text-[var(--muted)] hover:text-red-500 transition-colors"
-                            title="Remove group"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => {
-                      const lastRule = customRules[customRules.length - 1];
-                      const nextMin = lastRule ? lastRule.maxLevel + 1 : 1;
-                      setCustomRules([
-                        ...customRules,
-                        {
-                          prefix: "New",
-                          minLevel: nextMin,
-                          maxLevel: nextMin + 2,
-                          levelOffset: nextMin - 1,
-                        },
-                      ]);
-                    }}
-                    className="mt-2 flex items-center gap-1.5 px-3 py-1.5 text-sm text-[#0891B2] hover:bg-[#0891B2]/5 rounded-lg transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                    Add level group
-                  </button>
-                </div>
-
-                {/* Sections Editor */}
-                <div className="mb-6">
-                  <label className="block text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2">
-                    Class sections
-                  </label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {sections.map((s) => (
-                      <span
-                        key={s}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-sm font-medium rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)]"
-                      >
-                        {s}
-                        <button
-                          onClick={() => setSections(sections.filter((x) => x !== s))}
-                          className="ml-0.5 text-[var(--muted)] hover:text-red-500 transition-colors"
-                        >
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </span>
-                    ))}
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text"
-                        value={newSection}
-                        onChange={(e) => setNewSection(e.target.value.toUpperCase().slice(0, 2))}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && newSection && !sections.includes(newSection)) {
-                            setSections([...sections, newSection]);
-                            setNewSection("");
-                          }
-                        }}
-                        placeholder="+"
-                        className="w-10 px-2 py-1 text-sm text-center bg-[var(--card)] border border-dashed border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#0891B2]"
-                      />
-                      {newSection && !sections.includes(newSection) && (
-                        <button
-                          onClick={() => {
-                            setSections([...sections, newSection]);
-                            setNewSection("");
-                          }}
-                          className="p-1 text-[#0891B2] hover:bg-[#0891B2]/10 rounded transition-colors"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-xs text-[var(--muted)] mt-1.5">
-                    Type a letter and press Enter to add. These are appended to class names (e.g. 7<strong>A</strong>, 7<strong>B</strong>).
-                  </p>
-                </div>
-
-                {/* Live Preview */}
-                <div>
-                  <label className="block text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-2">
-                    Preview
-                  </label>
-                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background-secondary)] p-4">
-                    <div className="flex flex-wrap gap-x-6 gap-y-2">
-                      {customRules.map((rule, i) => (
-                        <div key={i}>
-                          <p className="text-[10px] font-medium text-[var(--muted)] mb-1 uppercase">
-                            {rule.prefix} (levels {rule.minLevel}&ndash;{rule.maxLevel})
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {Array.from(
-                              { length: Math.min(rule.maxLevel - rule.minLevel + 1, 6) },
-                              (_, j) => {
-                                const level = rule.minLevel + j;
-                                const code = sections.length > 0
-                                  ? `${level}${sections[0]}`
-                                  : `${level}`;
-                                return (
-                                  <span
-                                    key={level}
-                                    className="px-2 py-0.5 text-xs font-medium rounded bg-[var(--card)] border border-[var(--border)] text-[var(--foreground)]"
-                                  >
-                                    {formatGradeCodeWithRules(code, customRules)}
-                                  </span>
-                                );
-                              }
-                            )}
-                            {rule.maxLevel - rule.minLevel + 1 > 6 && (
-                              <span className="px-2 py-0.5 text-xs text-[var(--muted)]">
-                                +{rule.maxLevel - rule.minLevel + 1 - 6} more
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -472,6 +207,8 @@ export default function SettingsPage() {
                   { id: "email_messages", label: "New Messages", description: "Email notifications for new messages" },
                   { id: "email_reports", label: "Report Ready", description: "When scheduled reports are generated" },
                   { id: "email_system", label: "System Updates", description: "Updates about Schoolnify features and maintenance" },
+                  { id: "emergency", label: "Emergency Announcements", description: "Send urgent announcements to all parents" },
+                  { id: "closure", label: "School Closure Alerts", description: "Notify parents of unplanned closures" },
                 ].map(item => (
                   <div key={item.id} className="flex items-center justify-between py-3 border-b border-[var(--border)] last:border-0">
                     <div>
@@ -484,6 +221,20 @@ export default function SettingsPage() {
                     </label>
                   </div>
                 ))}
+              </div>
+
+              {/* Notification Channel */}
+              <div className="mt-4 pt-4 border-t border-[var(--border)]">
+                <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">Delivery Channel</label>
+                <p className="text-xs text-[var(--muted)] mb-2">How notifications are sent to parents</p>
+                <select
+                  defaultValue="email"
+                  className="px-3 py-2 text-sm bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[#0891B2]"
+                >
+                  <option value="email">Email only</option>
+                  <option value="sms">SMS only</option>
+                  <option value="both">Email + SMS</option>
+                </select>
               </div>
             </div>
           )}

@@ -12,6 +12,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   schoolInfo,
 } from "@/lib/demo-data";
+import { WelcomeBanner } from "@/components/dashboard/welcome-banner";
+import { GuidedTour } from "@/components/dashboard/guided-tour";
+import { SCHOOL_ADMIN_TOUR_STEPS, TOUR_STORAGE_KEYS } from "@/lib/tour-steps";
 
 // Hourly data for today's chart (like Stripe's gross volume)
 const hourlyAttendance = [
@@ -379,6 +382,7 @@ export default function SchoolAdminDashboard() {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showDateRangeMenu, setShowDateRangeMenu] = useState(false);
   const [showGranularityMenu, setShowGranularityMenu] = useState(false);
+  const [tourActive, setTourActive] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
   const dateRangeRef = useRef<HTMLDivElement>(null);
   const granularityRef = useRef<HTMLDivElement>(null);
@@ -438,8 +442,32 @@ export default function SchoolAdminDashboard() {
   const yesterdayAttendance = 1186;
   const totalStudents = 1247;
 
+  const handleStartTour = () => setTourActive(true);
+  const handleTourComplete = () => {
+    setTourActive(false);
+    try {
+      localStorage.setItem(TOUR_STORAGE_KEYS.completed, "true");
+      localStorage.removeItem(TOUR_STORAGE_KEYS.currentStep);
+    } catch { /* silently continue */ }
+  };
+  const handleTourSkip = () => {
+    setTourActive(false);
+    try {
+      localStorage.setItem(TOUR_STORAGE_KEYS.completed, "true");
+      localStorage.removeItem(TOUR_STORAGE_KEYS.currentStep);
+    } catch { /* silently continue */ }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-8">
+      {/* Welcome Banner & Guided Tour */}
+      <WelcomeBanner onStartTour={handleStartTour} />
+      <GuidedTour
+        steps={SCHOOL_ADMIN_TOUR_STEPS}
+        isOpen={tourActive}
+        onComplete={handleTourComplete}
+        onSkip={handleTourSkip}
+      />
       {/* Today Section - Like Stripe's main view */}
       <section>
         <h1 className="text-2xl font-semibold text-[var(--foreground)] mb-6">Today</h1>
