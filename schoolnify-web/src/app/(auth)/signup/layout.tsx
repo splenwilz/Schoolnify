@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AuthGuard } from "@/components/auth/auth-guard";
 
 export const metadata: Metadata = {
   title: "Sign Up - Schoolnify",
@@ -6,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function SignUpLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <AuthGuard mode="guest">{children}</AuthGuard>;
 }

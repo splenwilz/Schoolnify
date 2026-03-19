@@ -390,12 +390,10 @@ chore(scope): maintenance tasks
 
 <div align="center">
 
-**Built with ❤️ for Nigerian Schools**
-
 ![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-In%20Development-yellow?style=flat-square)
 ![Version](https://img.shields.io/badge/Version-0.1.0--alpha-blue?style=flat-square)
 
-*Last Updated: January 2026*
+*Last Updated: March 2026*
 
 </div>

@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme/theme-provider"
+import { QueryProvider } from "@/providers/query-provider"
 import { SchoolConfigProvider } from "@/lib/school-config-context"
 
 const geistSans = Geist({
@@ -60,9 +61,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
       >
         <ThemeProvider>
-          <SchoolConfigProvider>
-            {children}
-          </SchoolConfigProvider>
+          <QueryProvider>
+            <SchoolConfigProvider>
+              {children}
+            </SchoolConfigProvider>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

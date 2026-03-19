@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Schoolnify Web
+
+The frontend for Schoolnify — a multi-tenant school management platform. Built with Next.js 16, React 19, TypeScript, Tailwind CSS, and shadcn/ui.
+
+## Prerequisites
+
+- Node.js 18+
+- The [Schoolnify API](https://github.com/your-org/schoolnify-api) running locally on port 8080
 
 ## Getting Started
 
-First, run the development server:
+1. **Install dependencies:**
+
+```bash
+npm install
+```
+
+2. **Set up environment variables:**
+
+```bash
+cp .env.example .env.local
+```
+
+Edit `.env.local`:
+
+```env
+BACKEND_URL=http://localhost:8080
+```
+
+3. **Run the development server:**
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Multi-Tenant Subdomains
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+In development, school dashboards are accessed via subdomains:
 
-## Learn More
+```
+http://springfield-academy.localhost:3000
+```
 
-To learn more about Next.js, take a look at the following resources:
+The `proxy.ts` middleware detects subdomain slugs and rewrites requests to `/school-admin/*` routes. API requests (`/api/*`) are proxied to the backend via Next.js rewrites in `next.config.ts`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── api/                # API client and endpoint functions
+│   ├── client.ts       # Base fetch wrapper (credentials: include)
+│   └── endpoints/      # Endpoint functions grouped by domain
+├── app/                # Next.js App Router pages
+│   ├── (auth)/         # Auth pages (signin, signup, verify-email)
+│   ├── (dashboard)/    # School admin dashboard
+│   ├── (marketing)/    # Public marketing pages
+│   └── layout.tsx      # Root layout with providers
+├── components/         # Reusable UI components
+│   ├── auth/           # AuthGuard, auth-related components
+│   └── dashboard/      # Sidebar, header, tour, etc.
+├── hooks/              # React Query mutation/query hooks
+│   ├── use-auth.ts     # Auth mutation hooks (login, signup, verify)
+│   └── use-session.ts  # Session query hook + logout
+├── lib/                # Utilities, config, query client
+├── providers/          # React Query provider
+├── proxy.ts            # Subdomain routing (Next.js 16 proxy)
+└── types/              # TypeScript type definitions
+```
 
-## Deploy on Vercel
+## Auth Flow
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Authentication uses HttpOnly cookies managed by the backend. The frontend never stores tokens manually.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Signup:** `POST /auth/admin-signup` → verify email (OTP) → create organization → redirect to subdomain
+- **Login (subdomain):** `POST /auth/login` → cookies set on same origin → dashboard
+- **Login (main site):** `POST /auth/login` → redirect to subdomain with token → `POST /auth/establish-session` → cookies set on subdomain
+- **Session check:** `GET /auth/me` via `useSession()` hook (React Query, cached 5min)
+- **Route protection:** `AuthGuard` component wraps dashboard layouts (`mode="protected"`) and auth pages (`mode="guest"`)
+- **Logout:** `POST /auth/logout` → clear session cache → redirect to `/signin`
+
+## API Proxy
+
+In development, all browser API requests use relative URLs (`/api/v1/...`) and are proxied to the backend through Next.js rewrites. This avoids cross-site cookie issues with subdomains.
+
+```
+Browser → /api/v1/auth/me → Next.js rewrite → http://localhost:8080/api/v1/auth/me
+```
+
+## Tech Stack
+
+- **Framework:** Next.js 16, React 19, TypeScript
+- **Styling:** Tailwind CSS, shadcn/ui
+- **State:** TanStack React Query v5
+- **Auth:** HttpOnly cookies, Bearer token fallback
+- **Routing:** Subdomain proxy (`proxy.ts`), API rewrites (`next.config.ts`)

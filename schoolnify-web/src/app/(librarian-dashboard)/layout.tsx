@@ -1,5 +1,6 @@
 import { LibrarianSidebar } from "@/components/dashboard/librarian-sidebar";
 import { DashboardHeader } from "@/components/dashboard/header";
+import { AuthGuard } from "@/components/auth/auth-guard";
 
 export default function LibrarianDashboardLayout({
   children,
@@ -7,14 +8,16 @@ export default function LibrarianDashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[var(--background)]">
-      <LibrarianSidebar />
-      <div className="lg:pl-64">
-        <DashboardHeader />
-        <main className="p-4 lg:p-8">
-          {children}
-        </main>
+    <AuthGuard mode="protected">
+      <div className="min-h-screen bg-[var(--background)]">
+        <LibrarianSidebar />
+        <div className="lg:pl-64">
+          <DashboardHeader />
+          <main className="p-4 lg:p-8">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 }

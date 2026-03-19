@@ -6,6 +6,7 @@
 
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/header";
+import { AuthGuard } from "@/components/auth/auth-guard";
 
 export default function DashboardLayout({
   children,
@@ -13,21 +14,17 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[var(--background)]">
-      {/* Sidebar - Fixed on desktop, hidden on mobile */}
-      <DashboardSidebar />
-      
-      {/* Main Content Area */}
-      <div className="lg:pl-64">
-        {/* Top Header */}
-        <DashboardHeader />
-        
-        {/* Page Content */}
-        <main className="p-4 lg:p-8">
-          {children}
-        </main>
+    <AuthGuard mode="protected">
+      <div className="min-h-screen bg-[var(--background)]">
+        <DashboardSidebar />
+        <div className="lg:pl-64">
+          <DashboardHeader />
+          <main className="p-4 lg:p-8">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 }
 

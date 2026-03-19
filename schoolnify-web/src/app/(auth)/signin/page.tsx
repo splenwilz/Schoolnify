@@ -1,12 +1,109 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Sign In - Schoolnify",
-  description: "Sign in to your Schoolnify account to manage your school.",
-};
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { useLogin } from "@/hooks/use-auth";
+import { ApiError } from "@/api/client";
+import { authApi } from "@/api/endpoints/auth";
+import { useQueryClient } from "@tanstack/react-query";
+import { SESSION_QUERY_KEY } from "@/hooks/use-session";
 
 export default function SignInPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [establishing, setEstablishing] = useState(false);
+  const login = useLogin();
+  const queryClient = useQueryClient();
+
+  // Handle cross-origin token handoff via URL hash
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.startsWith("#auth=")) return;
+
+    const params = new URLSearchParams(hash.slice(1));
+    const accessToken = params.get("auth");
+    const slug = params.get("slug");
+    const refreshToken = params.get("rt");
+
+    if (!accessToken || !slug) return;
+
+    // Clear hash immediately
+    window.history.replaceState(null, "", window.location.pathname);
+
+    setEstablishing(true);
+    authApi
+      .establishSession(
+        { organization_slug: slug, refresh_token: refreshToken || undefined },
+        accessToken
+      )
+      .then((res) => {
+        queryClient.setQueryData(SESSION_QUERY_KEY, res.user);
+        window.location.href = "/";
+      })
+      .catch(() => {
+        setEstablishing(false);
+        setError("Failed to establish session. Please sign in again.");
+      });
+  }, [queryClient]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email || !password) {
+      setError("Please enter your email and password.");
+      return;
+    }
+
+    login.mutate(
+      { email, password },
+      {
+        onSuccess: (data) => {
+          const targetUrl = new URL(data.subdomain_url);
+          const sameHost = window.location.hostname === targetUrl.hostname;
+
+          if (sameHost) {
+            // Same subdomain — cookies are already set, just navigate
+            window.location.href = "/";
+          } else {
+            // Cross-origin — pass token via hash to subdomain's signin page
+            const slug = targetUrl.hostname.split(".")[0];
+            const hashParams = `auth=${data.access_token}&slug=${slug}`;
+            window.location.href = `${data.subdomain_url}/signin#${hashParams}`;
+          }
+        },
+        onError: (err) => {
+          if (err instanceof ApiError && err.data) {
+            const data = err.data as { error?: { message?: string }; detail?: string; message?: string };
+            setError(
+              data.error?.message ?? data.detail ?? data.message ?? "Invalid email or password."
+            );
+          } else {
+            setError("Network error. Please check your connection.");
+          }
+        },
+      }
+    );
+  };
+
+  if (establishing) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#0891B2] to-[#10B981] flex items-center justify-center animate-pulse">
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
+            </svg>
+          </div>
+          <p className="text-sm text-[var(--muted)]">Setting up your session...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex">
       {/* Left Panel - Decorative */}
@@ -15,7 +112,7 @@ export default function SignInPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-[#0891B2]/20 via-[var(--background-secondary)] to-[#10B981]/10" />
         <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-[#0891B2]/20 blur-[150px] rounded-full" />
         <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-[#10B981]/20 blur-[100px] rounded-full" />
-        
+
         {/* Content */}
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           {/* Logo */}
@@ -136,8 +233,15 @@ export default function SignInPage() {
             </div>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="mb-5 p-4 rounded-xl bg-[#EF4444]/10 border border-[#EF4444]/20 text-sm text-[#EF4444]">
+              {error}
+            </div>
+          )}
+
           {/* Form */}
-          <form className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-[var(--muted)] mb-2">
                 Email address
@@ -146,6 +250,8 @@ export default function SignInPage() {
                 type="email"
                 id="email"
                 name="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@school.edu"
                 className="w-full px-4 py-3.5 rounded-xl bg-[var(--card)] border border-[var(--border)] text-[var(--foreground)] placeholder-zinc-500 focus:outline-none focus:border-[#0891B2] focus:ring-1 focus:ring-[#0891B2] transition-all"
               />
@@ -159,13 +265,24 @@ export default function SignInPage() {
                   Forgot password?
                 </Link>
               </div>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                placeholder="••••••••••"
-                className="w-full px-4 py-3.5 rounded-xl bg-[var(--card)] border border-[var(--border)] text-[var(--foreground)] placeholder-zinc-500 focus:outline-none focus:border-[#0891B2] focus:ring-1 focus:ring-[#0891B2] transition-all"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  name="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••"
+                  className="w-full px-4 py-3.5 pr-12 rounded-xl bg-[var(--card)] border border-[var(--border)] text-[var(--foreground)] placeholder-zinc-500 focus:outline-none focus:border-[#0891B2] focus:ring-1 focus:ring-[#0891B2] transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
 
             {/* Remember me */}
@@ -182,9 +299,17 @@ export default function SignInPage() {
 
             <button
               type="submit"
-              className="w-full py-4 rounded-xl bg-[#0891B2] text-white font-semibold hover:bg-[#0E7490] transition-all shadow-lg shadow-[#0891B2]/20 hover:shadow-[#0891B2]/30"
+              disabled={login.isPending}
+              className="w-full py-4 rounded-xl bg-[#0891B2] text-white font-semibold hover:bg-[#0E7490] transition-all shadow-lg shadow-[#0891B2]/20 hover:shadow-[#0891B2]/30 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Sign In
+              {login.isPending ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign In"
+              )}
             </button>
           </form>
 
@@ -212,4 +337,3 @@ export default function SignInPage() {
     </div>
   );
 }
-

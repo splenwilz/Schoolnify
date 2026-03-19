@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, CheckCircle2, ArrowRight, RotateCcw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { useAdminSignup } from "@/hooks/use-auth";
+import { ApiError } from "@/api/client";
+import { isSignupPending } from "@/types/auth";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -24,46 +28,11 @@ const inputClassName =
   "w-full px-4 py-3.5 rounded-xl bg-[var(--card)] border border-[var(--border)] text-[var(--foreground)] placeholder-zinc-500 focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] transition-all";
 
 // ---------------------------------------------------------------------------
-// Success Screen
-// ---------------------------------------------------------------------------
-
-function RegistrationSuccess({ schoolName, email, onReset }: { schoolName: string; email: string; onReset: () => void }) {
-  return (
-    <div className="min-h-screen bg-[var(--background)] flex items-center justify-center px-6 py-12">
-      <div className="w-full max-w-md text-center">
-        <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-[#10B981]/15 flex items-center justify-center">
-          <CheckCircle2 className="w-10 h-10 text-[#10B981]" />
-        </div>
-        <h1 className="text-3xl font-bold text-[var(--foreground)] mb-3">Account Created!</h1>
-        <p className="text-[var(--muted)] mb-8">
-          Welcome, <span className="font-semibold text-[var(--foreground)]">{schoolName}</span>. Your school management platform is ready.
-        </p>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 mb-8">
-          <p className="text-sm text-[var(--muted)]">
-            Confirmation sent to <span className="font-medium text-[var(--foreground)]">{email}</span>
-          </p>
-        </div>
-        <div className="space-y-3">
-          <Link href="/school-admin" className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-[#10B981] text-white font-semibold hover:bg-[#059669] transition-all shadow-lg shadow-[#10B981]/20">
-            Go to Dashboard <ArrowRight className="w-4 h-4" />
-          </Link>
-          <button onClick={onReset} className="flex items-center justify-center gap-2 w-full py-3 text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
-            <RotateCcw className="w-3.5 h-3.5" /> Register Another School
-          </button>
-        </div>
-        <p className="text-xs text-[var(--muted)] mt-8">
-          Need help? <Link href="/docs" className="text-[#10B981] hover:text-[#22D3EE] font-medium">Read our setup guide</Link>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export default function SignUpPage() {
+  const router = useRouter();
   const [schoolName, setSchoolName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -73,8 +42,8 @@ export default function SignUpPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [validationError, setValidationError] = useState("");
-  const [submitted, setSubmitted] = useState(false);
 
+  const signup = useAdminSignup();
   const strength = getPasswordStrength(password);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -90,35 +59,51 @@ export default function SignUpPage() {
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) { setValidationError("Password must contain at least one symbol."); return; }
     if (!agreedToTerms) { setValidationError("You must agree to the Terms of Service and Privacy Policy."); return; }
 
-    try {
-      const existing = localStorage.getItem("schoolnify_registered_schools");
-      const schools = existing ? JSON.parse(existing) : [];
-      schools.push({
-        id: `school_${Date.now()}`,
-        schoolName,
-        adminFirstName: firstName,
-        adminLastName: lastName,
-        adminEmail: email,
-        createdAt: new Date().toISOString(),
-      });
-      localStorage.setItem("schoolnify_registered_schools", JSON.stringify(schools));
-    } catch {
-      // Silently continue
-    }
-
-    setSubmitted(true);
+    signup.mutate(
+      {
+        email: email.trim(),
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        password,
+        school_name: schoolName.trim(),
+      },
+      {
+        onSuccess: (data) => {
+          if (isSignupPending(data)) {
+            const params = new URLSearchParams({
+              token: data.pending_authentication_token,
+              email: email.trim(),
+              school: data.school_name,
+            });
+            if (data.user_id) params.set("uid", data.user_id);
+            router.push(`/verify-email?${params.toString()}`);
+          } else {
+            window.location.href = data.subdomain_url;
+          }
+        },
+        onError: (error) => {
+          if (error instanceof ApiError && error.data) {
+            const data = error.data as Record<string, unknown>;
+            const errObj = data.error as Record<string, unknown> | undefined;
+            const message = errObj?.message ?? data.detail ?? data.message;
+            setValidationError(
+              typeof message === "string" ? message : "Registration failed. Please try again."
+            );
+          } else {
+            setValidationError("Network error. Please check your connection.");
+          }
+        },
+      }
+    );
   };
 
   const handleReset = () => {
     setSchoolName(""); setFirstName(""); setLastName("");
     setEmail(""); setPassword("");
     setAgreedToTerms(false); setShowPassword(false);
-    setValidationError(""); setSubmitted(false);
+    setValidationError("");
+    signup.reset();
   };
-
-  if (submitted) {
-    return <RegistrationSuccess schoolName={schoolName} email={email} onReset={handleReset} />;
-  }
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex">
@@ -259,8 +244,15 @@ export default function SignUpPage() {
               </label>
             </div>
 
-            <button type="submit" className="w-full py-4 rounded-xl bg-[#10B981] text-white font-semibold hover:bg-[#059669] transition-all shadow-lg shadow-[#10B981]/20 hover:shadow-[#10B981]/30">
-              Create Account
+            <button type="submit" disabled={signup.isPending} className="w-full py-4 rounded-xl bg-[#10B981] text-white font-semibold hover:bg-[#059669] transition-all shadow-lg shadow-[#10B981]/20 hover:shadow-[#10B981]/30 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              {signup.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Creating Account...
+                </>
+              ) : (
+                "Create Account"
+              )}
             </button>
           </form>
 

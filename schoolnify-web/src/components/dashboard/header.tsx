@@ -7,11 +7,14 @@
 
 import { useState } from "react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
-import { notifications, staffConversations, currentUser, schoolInfo } from "@/lib/demo-data";
+import { notifications, staffConversations, schoolInfo } from "@/lib/demo-data";
 import { MessagingPanel } from "@/components/dashboard/messaging/messaging-panel";
 import { NotificationCenter } from "@/components/dashboard/notification-center";
+import { useSession, useLogout } from "@/hooks/use-session";
 
 export function DashboardHeader() {
+  const { user } = useSession();
+  const logout = useLogout();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMessaging, setShowMessaging] = useState(false);
@@ -115,11 +118,11 @@ export function DashboardHeader() {
               className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-[var(--card)] border border-transparent hover:border-[var(--border)] transition-colors"
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#0891B2] to-[#10B981] flex items-center justify-center text-white font-semibold text-sm">
-                {currentUser.firstName[0]}{currentUser.lastName[0]}
+                {user?.first_name?.[0]}{user?.last_name?.[0]}
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-[var(--foreground)]">
-                  {currentUser.firstName}
+                  {user?.first_name}
                 </p>
               </div>
               <svg className="hidden md:block w-4 h-4 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -132,9 +135,9 @@ export function DashboardHeader() {
               <div className="absolute right-0 mt-2 w-56 rounded-xl bg-[var(--card)] border border-[var(--border)] shadow-xl overflow-hidden">
                 <div className="p-4 border-b border-[var(--border)]">
                   <p className="font-semibold text-[var(--foreground)]">
-                    {currentUser.firstName} {currentUser.lastName}
+                    {user?.first_name} {user?.last_name}
                   </p>
-                  <p className="text-sm text-[var(--muted)]">{currentUser.email}</p>
+                  <p className="text-sm text-[var(--muted)]">{user?.email}</p>
                 </div>
                 <div className="p-2">
                   <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[var(--foreground-secondary)] hover:bg-[var(--background-secondary)] rounded-lg transition-colors">
@@ -158,7 +161,10 @@ export function DashboardHeader() {
                   </button>
                 </div>
                 <div className="p-2 border-t border-[var(--border)]">
-                  <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#EF4444] hover:bg-[#EF4444]/10 rounded-lg transition-colors">
+                  <button
+                    onClick={logout}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#EF4444] hover:bg-[#EF4444]/10 rounded-lg transition-colors"
+                  >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
                     </svg>
