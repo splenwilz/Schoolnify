@@ -100,7 +100,12 @@ function VerifyEmailContent() {
               },
               {
                 onSuccess: (orgData) => {
-                  window.location.href = orgData.subdomain_url;
+                  // Redirect to subdomain with token handoff via hash
+                  // The subdomain's signin page will call establish-session to set cookies
+                  const targetUrl = new URL(orgData.subdomain_url);
+                  const slug = targetUrl.hostname.split(".")[0];
+                  const hashParams = `auth=${verifyData.access_token}&slug=${slug}`;
+                  window.location.href = `${orgData.subdomain_url}/signin#${hashParams}`;
                 },
                 onError: (orgErr) => {
                   if (orgErr instanceof ApiError && orgErr.data) {
