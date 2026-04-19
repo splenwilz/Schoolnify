@@ -132,7 +132,7 @@ export default function ReservationsPage() {
                     <td className="py-3 px-3 text-[12px] text-[var(--foreground)]">{res.memberName}</td>
                     <td className="py-3 px-3 text-[12px] text-[var(--muted)]">{res.grade}</td>
                     <td className="py-3 px-3 text-[12px] text-[var(--muted)]">{new Date(res.reservedDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</td>
-                    <td className="py-3 px-3 text-[12px] text-[var(--foreground)]">{res.queuePosition > 0 ? `#${res.queuePosition}` : "—"}</td>
+                    <td className="py-3 px-3 text-[12px] text-[var(--foreground)]">{res.queuePosition > 0 ? `#${res.queuePosition}` : "-"}</td>
                     <td className="py-3 px-3">
                       {res.notified ? <CheckCircle2 className="w-4 h-4 text-[#10B981]" /> : <span className="text-[12px] text-[var(--muted)]">No</span>}
                     </td>

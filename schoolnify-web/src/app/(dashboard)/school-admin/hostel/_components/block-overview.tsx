@@ -61,7 +61,7 @@ export function BlockOverview({ blocks, rooms }: BlockOverviewProps) {
               {/* Block Name & Type */}
               <div className="flex items-center justify-between">
                 <span className="text-[13px] font-medium text-[var(--foreground)]">
-                  {block.name.split(" — ")[0] || block.name}
+                  {block.name.split(". ")[0] || block.name}
                 </span>
                 <span
                   className={cn(
@@ -75,9 +75,9 @@ export function BlockOverview({ blocks, rooms }: BlockOverviewProps) {
               </div>
 
               {/* Full Name (subtitle) */}
-              {block.name.includes(" — ") && (
+              {block.name.includes(". ") && (
                 <p className="text-[11px] text-[var(--muted)] -mt-1">
-                  {block.name.split(" — ")[1]}
+                  {block.name.split(". ")[1]}
                 </p>
               )}
 

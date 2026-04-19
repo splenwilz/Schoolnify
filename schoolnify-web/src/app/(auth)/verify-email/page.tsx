@@ -190,7 +190,7 @@ function VerifyEmailContent() {
     }
   };
 
-  // No token — invalid link
+  // No token. invalid link
   if (!token) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center px-6">
@@ -211,7 +211,7 @@ function VerifyEmailContent() {
     );
   }
 
-  // Main — OTP input
+  // Main. OTP input
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex">
       {/* Left Panel */}
@@ -262,7 +262,7 @@ function VerifyEmailContent() {
         </div>
       </div>
 
-      {/* Right Panel — OTP Form */}
+      {/* Right Panel. OTP Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}

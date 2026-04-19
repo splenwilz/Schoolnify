@@ -1,10 +1,13 @@
 "use client";
 
-import { Building2, Globe, FileText, Bell, Palette, Image as ImageIcon } from "lucide-react";
-import { SectionCard, Field, Toggle, TextInput, Select, SearchableSelect } from "./form-primitives";
-import { isIdentityComplete, isBrandingComplete, isLocationComplete, isReportCardComplete, isCommsComplete } from "./setup-types";
+import { useCallback, useEffect, useState } from "react";
+import { Building2, Globe, Bell, Palette, Image as ImageIcon } from "lucide-react";
+import { SectionCard, Field, Toggle, TextInput, Select } from "./form-primitives";
+import { isIdentityComplete, isBrandingComplete, isLocationComplete, isCommsComplete } from "./setup-types";
 import type { SetupData } from "./setup-types";
-import { SCHOOL_TYPES, COUNTRIES, TIMEZONES, CURRENCIES, DATE_FORMATS, LANGUAGES, REPORT_CARD_TEMPLATES } from "../_constants/setup-data";
+import { SCHOOL_TYPES, OWNERSHIP_TYPES, DATE_FORMATS, LANGUAGES } from "../_constants/setup-data";
+import { CountrySelect, StateSelect, CityInput, getCountryDetails } from "./location-picker";
+import type { Country, StateInfo } from "./location-picker";
 
 // ---------------------------------------------------------------------------
 // Shared Props
@@ -35,13 +38,16 @@ export function IdentitySection({ data, update, expanded, toggleSection }: Secti
       <Field label="School Type" description="What kind of institution is this?">
         <Select value={data.schoolType} onChange={(v) => update("schoolType", v)} options={SCHOOL_TYPES} />
       </Field>
-      <Field label="School Motto" description="Your school's motto or tagline">
+      <Field label="Ownership Type" description="How your school is classified: government, private, religious, or community-run">
+        <Select value={data.ownershipType} onChange={(v) => update("ownershipType", v)} options={OWNERSHIP_TYPES} />
+      </Field>
+      <Field label="School Motto" description="Your school's motto or tagline (optional)">
         <TextInput value={data.motto} onChange={(v) => update("motto", v)} placeholder="e.g. Excellence in Education" />
       </Field>
-      <Field label="Founded Year" description="Year the school was established">
+      <Field label="Founded Year" description="Year the school was established (optional)">
         <TextInput value={data.foundedYear} onChange={(v) => update("foundedYear", v)} placeholder="e.g. 1995" type="number" />
       </Field>
-      <Field label="Accreditation Number" description="Official accreditation or registration number">
+      <Field label="Accreditation or Registration ID" description="Official registration or accreditation number, if applicable">
         <TextInput value={data.accreditationNumber} onChange={(v) => update("accreditationNumber", v)} placeholder="e.g. SCH/2024/001" />
       </Field>
     </SectionCard>
@@ -53,7 +59,74 @@ export function IdentitySection({ data, update, expanded, toggleSection }: Secti
 // ---------------------------------------------------------------------------
 
 export function LocationSection({ data, update, expanded, toggleSection }: SectionProps) {
-  const countryOptions = COUNTRIES.map((c) => ({ label: c, value: c }));
+  const [countryTimezones, setCountryTimezones] = useState<{ label: string; value: string }[]>([]);
+  const [countryMeta, setCountryMeta] = useState<Country | null>(null);
+
+  // Auto-detect country from IP on first load (only when country is empty)
+  useEffect(() => {
+    if (data.country) return;
+    const controller = new AbortController();
+    fetch("https://ipapi.co/json/", { signal: controller.signal })
+      .then((r) => r.json())
+      .then((geo: { country_code?: string }) => {
+        if (geo.country_code && !data.country) {
+          update("country", geo.country_code);
+        }
+      })
+      .catch(() => { /* silent fail -- admin picks manually */ });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // When country changes: capture meta for currency display + auto-fill
+  const handleCountryMeta = useCallback(
+    (country: Country | null) => {
+      setCountryMeta(country);
+      if (!country) {
+        setCountryTimezones([]);
+        return;
+      }
+      // Auto-fill currency whenever country changes (overwrites previous)
+      if (country.currency) {
+        update("currency", country.currency);
+      }
+    },
+    [update]
+  );
+
+  // Load timezones when country changes
+  useEffect(() => {
+    if (!data.country) {
+      setCountryTimezones([]);
+      return;
+    }
+    getCountryDetails(data.country).then((c) => {
+      if (!c?.timezones) return;
+      interface ApiTz { zoneName: string; gmtOffsetName?: string }
+      const opts = (c.timezones as ApiTz[]).map((tz) => ({
+        label: `${tz.zoneName}${tz.gmtOffsetName ? ` (${tz.gmtOffsetName})` : ""}`,
+        value: tz.zoneName,
+      }));
+      setCountryTimezones(opts);
+      // Auto-fill timezone if country has only one (most countries)
+      if (opts.length === 1) {
+        update("timezone", opts[0].value);
+      }
+      // For countries with multiple timezones (US, Canada, Russia, etc.),
+      // don't auto-pick — wait for state selection or user choice
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.country]);
+
+  // When state changes: state's timezone takes precedence over country-level default
+  const handleStateMeta = useCallback(
+    (state: StateInfo | null) => {
+      if (state?.timezone) {
+        update("timezone", state.timezone);
+      }
+    },
+    [update]
+  );
 
   return (
     <SectionCard
@@ -66,29 +139,71 @@ export function LocationSection({ data, update, expanded, toggleSection }: Secti
       onToggle={() => toggleSection("location")}
     >
       <Field label="Country" description="Country where the school is located">
-        <SearchableSelect
+        <CountrySelect
           value={data.country}
-          onChange={(v) => update("country", v)}
-          options={countryOptions}
-          placeholder="Search country..."
+          onChange={(v) => {
+            update("country", v);
+            // Reset dependent fields when country changes
+            update("stateRegion", "");
+            update("city", "");
+            update("timezone", "");
+          }}
+          onCountryMeta={handleCountryMeta}
         />
       </Field>
       <Field label="State / Region" description="State, province, or region">
-        <TextInput value={data.stateRegion} onChange={(v) => update("stateRegion", v)} placeholder="e.g. Lagos" />
-      </Field>
-      <Field label="City" description="City or town">
-        <TextInput value={data.city} onChange={(v) => update("city", v)} placeholder="e.g. Ikeja" />
-      </Field>
-      <Field label="Timezone" description="Your school's timezone">
-        <SearchableSelect
-          value={data.timezone}
-          onChange={(v) => update("timezone", v)}
-          options={TIMEZONES}
-          placeholder="Search timezone..."
+        <StateSelect
+          countryCode={data.country}
+          value={data.stateRegion}
+          onChange={(v) => {
+            update("stateRegion", v);
+            update("city", "");
+          }}
+          onStateMeta={handleStateMeta}
         />
       </Field>
-      <Field label="Currency" description="Currency for fee management">
-        <Select value={data.currency} onChange={(v) => update("currency", v)} options={CURRENCIES} />
+      <Field label="City" description="City or town">
+        <CityInput
+          countryCode={data.country}
+          stateCode={data.stateRegion}
+          value={data.city}
+          onChange={(v) => update("city", v)}
+        />
+      </Field>
+      <Field
+        label="Timezone"
+        description={
+          countryTimezones.length > 1
+            ? "We set it from your state. Change if needed."
+            : "Based on your country"
+        }
+      >
+        {countryTimezones.length > 0 ? (
+          <Select value={data.timezone} onChange={(v) => update("timezone", v)} options={countryTimezones} />
+        ) : (
+          <input
+            disabled
+            placeholder="Select a country first"
+            className="w-full px-3.5 py-2.5 text-[15px] bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--muted)] cursor-not-allowed"
+          />
+        )}
+      </Field>
+      <Field label="Currency" description="Based on your country">
+        {data.currency ? (
+          <div className="w-full px-3.5 py-2.5 text-[15px] bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] flex items-center justify-between">
+            <span>
+              {countryMeta?.currency_symbol && <span className="mr-2 font-semibold">{countryMeta.currency_symbol}</span>}
+              {data.currency}
+              {countryMeta?.currency_name && <span className="text-[var(--muted)] ml-2">({countryMeta.currency_name})</span>}
+            </span>
+          </div>
+        ) : (
+          <input
+            disabled
+            placeholder="Select a country first"
+            className="w-full px-3.5 py-2.5 text-[15px] bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--muted)] cursor-not-allowed"
+          />
+        )}
       </Field>
       <Field label="Date Format" description="How dates are displayed">
         <Select value={data.dateFormat} onChange={(v) => update("dateFormat", v)} options={DATE_FORMATS} />
@@ -101,50 +216,7 @@ export function LocationSection({ data, update, expanded, toggleSection }: Secti
 }
 
 // ---------------------------------------------------------------------------
-// 3. ReportCardSection
-// ---------------------------------------------------------------------------
-
-export function ReportCardSection({ data, update, expanded, toggleSection }: SectionProps) {
-  return (
-    <SectionCard
-      id="reportcard"
-      title="Report Card"
-      description="Configure report card generation and layout"
-      icon={<FileText className="w-5 h-5" />}
-      isComplete={isReportCardComplete(data)}
-      isExpanded={expanded === "reportcard"}
-      onToggle={() => toggleSection("reportcard")}
-    >
-      <Field label="Default Template" description="Template used for generating report cards">
-        <Select value={data.reportTemplate} onChange={(v) => update("reportTemplate", v)} options={REPORT_CARD_TEMPLATES} />
-      </Field>
-      <Field label="Show Class Position" description="Display student ranking in class">
-        <Toggle checked={data.showPosition} onChange={(v) => update("showPosition", v)} />
-      </Field>
-      <Field label="Show GPA" description="Display GPA on report card">
-        <Toggle checked={data.showGPA} onChange={(v) => update("showGPA", v)} />
-      </Field>
-      <Field label="Teacher Comments" description="Include teacher comments section">
-        <Toggle checked={data.showTeacherComments} onChange={(v) => update("showTeacherComments", v)} />
-      </Field>
-      <Field label="Principal Signature" description="Include principal signature line">
-        <Toggle checked={data.showPrincipalSignature} onChange={(v) => update("showPrincipalSignature", v)} />
-      </Field>
-      <Field label="Attendance Summary" description="Show term attendance record on report card">
-        <Toggle checked={data.showAttendanceSummary} onChange={(v) => update("showAttendanceSummary", v)} />
-      </Field>
-      <Field label="Behavior / Conduct Rating" description="Include behavior or conduct assessment">
-        <Toggle checked={data.showBehaviorRating} onChange={(v) => update("showBehaviorRating", v)} />
-      </Field>
-      <Field label="Subject Teacher Signatures" description="Include signature line per subject teacher">
-        <Toggle checked={data.showSubjectTeacherSignature} onChange={(v) => update("showSubjectTeacherSignature", v)} />
-      </Field>
-    </SectionCard>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// 4. CommunicationSection
+// 3. CommunicationSection
 // ---------------------------------------------------------------------------
 
 export function CommunicationSection({ data, update, expanded, toggleSection }: SectionProps) {
@@ -209,14 +281,14 @@ export function BrandingSection({ data, update, expanded, toggleSection }: Secti
           <div className="flex-1">
             <label className="flex flex-col items-center justify-center w-full h-20 rounded-xl border-2 border-dashed border-[var(--border)] hover:border-[var(--foreground)]/30 bg-[var(--background-secondary)]/50 cursor-pointer transition-colors">
               <ImageIcon className="w-5 h-5 text-[var(--muted)] mb-1" />
-              <span className="text-xs text-[var(--muted)]">Click to upload logo</span>
-              <span className="text-[10px] text-[var(--muted)]/60">PNG, JPG, SVG up to 2MB</span>
+              <span className="text-sm text-[var(--muted)]">Click to upload logo</span>
+              <span className="text-[14px] text-[var(--muted)]/60">PNG, JPG, SVG up to 2MB</span>
               <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden"
                 onChange={(e) => { const file = e.target.files?.[0]; if (!file || file.size > 2 * 1024 * 1024) return; const reader = new FileReader(); reader.onload = () => update("logoUrl", reader.result as string); reader.readAsDataURL(file); }}
               />
             </label>
             {data.logoUrl && (
-              <button type="button" onClick={() => update("logoUrl", "")} className="mt-2 text-xs text-[#EF4444] hover:underline">Remove logo</button>
+              <button type="button" onClick={() => update("logoUrl", "")} className="mt-2 text-sm text-[#EF4444] hover:underline">Remove logo</button>
             )}
           </div>
         </div>
@@ -236,8 +308,8 @@ export function BrandingSection({ data, update, expanded, toggleSection }: Secti
 
       {/* Live Preview */}
       <div className="col-span-full mt-2">
-        <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-3">Login Page Preview</p>
-        <div className="rounded-xl border border-[var(--border)] overflow-hidden h-[280px] max-w-[540px] flex text-[10px]">
+        <p className="text-sm font-medium text-[var(--muted)] uppercase tracking-wider mb-3">Login Page Preview</p>
+        <div className="rounded-xl border border-[var(--border)] overflow-hidden h-[280px] max-w-[540px] flex text-[14px]">
           <div className="w-[48%] bg-[var(--background)] flex flex-col justify-between p-5">
             <p className="text-[8px] text-[var(--muted)]">Your School</p>
             <div>
@@ -251,7 +323,7 @@ export function BrandingSection({ data, update, expanded, toggleSection }: Secti
                   {data.motto ? data.motto.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() : "AB"}
                 </div>
               )}
-              <p className="font-bold text-[11px] text-[var(--foreground)] mb-0.5">Welcome Back</p>
+              <p className="font-bold text-[15px] text-[var(--foreground)] mb-0.5">Welcome Back</p>
               <p className="text-[8px] text-[var(--muted)] mb-3">Sign in to your school portal</p>
               <div className="w-full h-px bg-[var(--border)] mb-3" />
               <p className="text-[8px] font-medium text-[var(--foreground)] mb-1">Email</p>

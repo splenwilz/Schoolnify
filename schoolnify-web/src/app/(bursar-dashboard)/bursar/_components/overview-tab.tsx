@@ -194,7 +194,7 @@ export function OverviewTab() {
   const alerts = useMemo(() => {
     const items: { id: string; severity: "critical" | "warning" | "info"; icon: typeof AlertCircle; title: string; description: string }[] = [];
 
-    // Approaching fee deadline — not shown in KPIs
+    // Approaching fee deadline. not shown in KPIs
     const nearestDue = upcomingPaymentDues.filter((d) => d.daysUntil <= 7);
     if (nearestDue.length > 0) {
       const soonest = nearestDue.reduce((a, b) => (a.daysUntil < b.daysUntil ? a : b));

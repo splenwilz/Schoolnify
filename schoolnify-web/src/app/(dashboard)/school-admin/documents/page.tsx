@@ -76,7 +76,7 @@ export default function DocumentsPage() {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Main content area */}
           <div className="flex-1 space-y-4">
-            {/* Metric Cards — 2x2 grid */}
+            {/* Metric Cards. 2x2 grid */}
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]">
                 <div className="flex items-center gap-2 mb-1">

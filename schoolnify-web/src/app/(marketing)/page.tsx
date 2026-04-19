@@ -33,7 +33,7 @@ export default function Home() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#10B981]"></span>
               </span>
-              v1.0 now available — see what&apos;s new
+              v1.0 now available. see what&apos;s new
             </div>
 
             {/* Main headline */}
@@ -475,11 +475,11 @@ export default function Home() {
                   <div className="p-6 rounded-2xl bg-[var(--background)] border border-[var(--border)] md:inline-block">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-2 h-2 rounded-full bg-[#10B981]" />
-                      <span className="text-sm">12 Teachers — Added</span>
+                      <span className="text-sm">12 Teachers. Added</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-[#10B981]" />
-                      <span className="text-sm">8 Classes — Configured</span>
+                      <span className="text-sm">8 Classes. Configured</span>
                     </div>
                   </div>
                 </div>

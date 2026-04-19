@@ -626,7 +626,7 @@ export function InvoicesTab() {
     <div className="space-y-6">
       {/* ── Summary Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Invoiced — with status donut */}
+        {/* Card 1: Total Invoiced. with status donut */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -689,7 +689,7 @@ export function InvoicesTab() {
           </div>
         </motion.div>
 
-        {/* Card 2: Paid — with collection rate progress */}
+        {/* Card 2: Paid. with collection rate progress */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -741,7 +741,7 @@ export function InvoicesTab() {
           </div>
         </motion.div>
 
-        {/* Card 3: Pending — with countdown feel */}
+        {/* Card 3: Pending. with countdown feel */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -801,7 +801,7 @@ export function InvoicesTab() {
           </div>
         </motion.div>
 
-        {/* Card 4: Overdue — with urgency indicator */}
+        {/* Card 4: Overdue. with urgency indicator */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}

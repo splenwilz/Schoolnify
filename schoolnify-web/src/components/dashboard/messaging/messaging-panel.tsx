@@ -171,7 +171,7 @@ export function MessagingPanel({ isOpen, onClose }: MessagingPanelProps) {
             {/* Content */}
             <div className="flex-1 min-h-0 flex">
               {isFullscreen ? (
-                /* Fullscreen: split-pane — list on left, chat on right */
+                /* Fullscreen: split-pane. list on left, chat on right */
                 <>
                   <div className="w-80 flex-shrink-0 border-r border-[var(--border)]">
                     <MessagingConversationList

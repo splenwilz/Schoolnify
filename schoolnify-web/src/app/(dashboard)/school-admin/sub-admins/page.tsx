@@ -49,7 +49,7 @@ export default function SubAdminsPage() {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Main content area */}
           <div className="flex-1 space-y-4">
-            {/* Metric Cards — 2x2 Grid */}
+            {/* Metric Cards. 2x2 Grid */}
             <div className="grid grid-cols-2 gap-4">
               {/* Total Sub-Admins */}
               <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]">
@@ -113,7 +113,7 @@ export default function SubAdminsPage() {
             </div>
           </div>
 
-          {/* Right Sidebar — Role Cards */}
+          {/* Right Sidebar. Role Cards */}
           <div className="w-full lg:w-72">
             <RoleCards roles={subAdminRoles} subAdmins={subAdmins} />
           </div>

@@ -148,7 +148,7 @@ export function OverviewTab() {
       return (now.getTime() - due.getTime()) / (1000 * 60 * 60 * 24) > 14;
     });
     if (longOverdue.length > 0) {
-      items.push({ id: "long_overdue", severity: "critical", message: `${longOverdue.length} book(s) overdue by more than 14 days — consider sending final reminders`, icon: AlertCircle });
+      items.push({ id: "long_overdue", severity: "critical", message: `${longOverdue.length} book(s) overdue by more than 14 days. consider sending final reminders`, icon: AlertCircle });
     }
     const pendingReservations = 3;
     if (pendingReservations > 0) {

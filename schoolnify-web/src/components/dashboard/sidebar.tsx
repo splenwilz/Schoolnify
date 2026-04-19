@@ -11,7 +11,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { schoolInfo, currentUser } from "@/lib/demo-data";
 
-// Navigation items for school admin — ordered by daily usage priority
+// Navigation items for school admin. ordered by daily usage priority
 const navigation = [
   // --- Overview ---
   {

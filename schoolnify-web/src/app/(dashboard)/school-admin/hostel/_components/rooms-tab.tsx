@@ -100,7 +100,7 @@ export function RoomsTab({
                 : "border border-[var(--border)] bg-[var(--card)] text-[var(--muted)] hover:text-[var(--foreground)]"
             )}
           >
-            {block.name.split(" — ")[0] || block.name}
+            {block.name.split(". ")[0] || block.name}
           </button>
         ))}
       </div>

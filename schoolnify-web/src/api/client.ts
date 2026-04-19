@@ -27,7 +27,7 @@ function getBaseUrl(): string {
     // Server-side needs absolute URL (bypasses Next.js proxy)
     return process.env.BACKEND_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
   }
-  // Client-side uses relative URL — proxied through Next.js rewrites
+  // Client-side uses relative URL. proxied through Next.js rewrites
   // This keeps all requests same-origin, avoiding cross-site cookie issues
   return "";
 }

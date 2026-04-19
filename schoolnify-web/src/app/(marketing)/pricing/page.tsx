@@ -89,7 +89,7 @@ const faqs = [
   },
   {
     question: "Is there a discount for annual billing?",
-    answer: "Yes! Pay annually and save about 18% — that's equivalent to getting 2 months free. Plus, you get priority support.",
+    answer: "Yes! Pay annually and save about 18%. that's equivalent to getting 2 months free. Plus, you get priority support.",
   },
   {
     question: "Do you offer discounts for public schools?",
@@ -101,12 +101,12 @@ const comparisonFeatures = [
   { name: "Number of Students", starter: "200", pro: "1,000", enterprise: "Unlimited" },
   { name: "Staff Accounts", starter: "5", pro: "Unlimited", enterprise: "Unlimited" },
   { name: "Academic Management", starter: "Basic", pro: "Full Suite", enterprise: "Full Suite + Custom" },
-  { name: "Financial Management", starter: "—", pro: "✓", enterprise: "✓ Advanced" },
-  { name: "Offline Mode", starter: "—", pro: "✓", enterprise: "✓" },
-  { name: "Push Notifications", starter: "—", pro: "✓", enterprise: "✓" },
-  { name: "Custom Reports", starter: "—", pro: "✓", enterprise: "✓" },
-  { name: "API Access", starter: "—", pro: "—", enterprise: "✓" },
-  { name: "Multi-Campus", starter: "—", pro: "—", enterprise: "✓" },
+  { name: "Financial Management", starter: "-", pro: "✓", enterprise: "✓ Advanced" },
+  { name: "Offline Mode", starter: "-", pro: "✓", enterprise: "✓" },
+  { name: "Push Notifications", starter: "-", pro: "✓", enterprise: "✓" },
+  { name: "Custom Reports", starter: "-", pro: "✓", enterprise: "✓" },
+  { name: "API Access", starter: "-", pro: "-", enterprise: "✓" },
+  { name: "Multi-Campus", starter: "-", pro: "-", enterprise: "✓" },
   { name: "Support", starter: "Email", pro: "Priority", enterprise: "Dedicated Manager" },
 ];
 

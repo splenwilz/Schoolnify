@@ -196,7 +196,7 @@ export default function AdmissionsPage() {
     const newEntry = {
       status: "enrolled",
       date: data.enrollmentDate,
-      note: `Enrolled in ${data.classAssignment} — Fee status: ${data.feeStatus}`,
+      note: `Enrolled in ${data.classAssignment}. Fee status: ${data.feeStatus}`,
     };
 
     setLocalApplications((prev) =>
@@ -301,7 +301,7 @@ export default function AdmissionsPage() {
         </div>
       </div>
 
-      {/* Row 1: Hero — Overview + Mini Stats + Pipeline */}
+      {/* Row 1: Hero. Overview + Mini Stats + Pipeline */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
         <div className="lg:col-span-2">
           <AdmissionsOverviewCard

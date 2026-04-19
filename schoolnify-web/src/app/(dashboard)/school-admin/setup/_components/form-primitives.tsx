@@ -44,10 +44,10 @@ export function SectionCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="text-[15px] font-semibold text-[var(--foreground)]">{title}</h3>
-            {isComplete && <CheckCircle2 className="w-4 h-4 text-[#10B981]" />}
+            <h3 className="text-[17px] font-semibold text-[var(--foreground)]">{title}</h3>
+            {isComplete && <CheckCircle2 className="w-5 h-5 text-[#10B981]" />}
           </div>
-          <p className="text-[12px] text-[var(--muted)]">{description}</p>
+          <p className="text-[14px] text-[var(--muted)]">{description}</p>
         </div>
         <ChevronDown className={cn(
           "w-5 h-5 text-[var(--muted)] transition-transform shrink-0",
@@ -84,10 +84,10 @@ export function Field({
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
       <div>
-        <p className="text-[13px] font-medium text-[var(--foreground)]">{label}</p>
-        {description && <p className="text-[11px] text-[var(--muted)]">{description}</p>}
+        <p className="text-[15px] font-medium text-[var(--foreground)]">{label}</p>
+        {description && <p className="text-[13px] text-[var(--muted)] mt-0.5">{description}</p>}
       </div>
-      <div className="sm:w-64">{children}</div>
+      <div className="sm:w-72">{children}</div>
     </div>
   );
 }
@@ -134,7 +134,7 @@ export function TextInput({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       type={type}
-      className="w-full px-3 py-2 text-[13px] bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-1 focus:ring-[#0891B2]/30"
+      className="w-full px-3.5 py-2.5 text-[15px] bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-1 focus:ring-[#0891B2]/30"
     />
   );
 }
@@ -152,7 +152,7 @@ export function Select({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 text-[13px] bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[#0891B2]/30"
+      className="w-full px-3.5 py-2.5 text-[15px] bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[#0891B2]/30"
     >
       <option value="">Select...</option>
       {options.map((o) => (
@@ -200,7 +200,7 @@ export function SearchableSelect({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-3 py-2 text-[13px] bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[#0891B2]/30"
+        className="w-full flex items-center justify-between px-3.5 py-2.5 text-[15px] bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[#0891B2]/30"
       >
         <span className={selected ? "" : "text-[var(--muted)]"}>
           {selected ? selected.label : placeholder}
@@ -217,7 +217,7 @@ export function SearchableSelect({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={placeholder}
-                className="flex-1 text-[12px] bg-transparent text-[var(--foreground)] placeholder:text-[var(--muted)] outline-none"
+                className="flex-1 text-[14px] bg-transparent text-[var(--foreground)] placeholder:text-[var(--muted)] outline-none"
               />
               {query && (
                 <button onClick={() => setQuery("")}>
@@ -228,7 +228,7 @@ export function SearchableSelect({
           </div>
           <div className="overflow-y-auto max-h-48 p-1">
             {filtered.length === 0 ? (
-              <p className="px-3 py-2 text-[12px] text-[var(--muted)]">No results</p>
+              <p className="px-3 py-2 text-[14px] text-[var(--muted)]">No results</p>
             ) : (
               filtered.map((o) => (
                 <button
@@ -239,7 +239,7 @@ export function SearchableSelect({
                     setQuery("");
                   }}
                   className={cn(
-                    "w-full text-left px-3 py-2 text-[12px] rounded-md transition-colors",
+                    "w-full text-left px-3 py-2 text-[14px] rounded-md transition-colors",
                     o.value === value
                       ? "bg-[#0891B2]/10 text-[#0891B2] font-medium"
                       : "text-[var(--foreground)] hover:bg-[var(--background-secondary)]"
@@ -280,7 +280,7 @@ export function ChipSelect({
           key={o}
           onClick={() => toggle(o)}
           className={cn(
-            "px-3 py-1.5 text-[12px] font-medium rounded-lg border transition-colors",
+            "px-3.5 py-2 text-[14px] font-medium rounded-lg border transition-colors",
             selected.includes(o)
               ? "bg-[#0891B2]/10 border-[#0891B2]/30 text-[#0891B2]"
               : "bg-[var(--background-secondary)] border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
