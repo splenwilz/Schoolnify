@@ -98,7 +98,7 @@ export const GRADING_PRESETS: GradingPreset[] = [
       { grade: "C5", minScore: "60", maxScore: "64", descriptor: "Credit", gpaPoints: "2.0" },
       { grade: "C6", minScore: "55", maxScore: "59", descriptor: "Credit", gpaPoints: "1.5" },
       { grade: "D7", minScore: "50", maxScore: "54", descriptor: "Pass", gpaPoints: "1.0" },
-      { grade: "E8", minScore: "40", maxScore: "49", descriptor: "Weak Pass", gpaPoints: "0.5" },
+      { grade: "E8", minScore: "40", maxScore: "49", descriptor: "Fail", gpaPoints: "0" },
       { grade: "F9", minScore: "0", maxScore: "39", descriptor: "Fail", gpaPoints: "0" },
     ],
   },

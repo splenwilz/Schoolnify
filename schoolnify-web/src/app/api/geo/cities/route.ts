@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
       headers: { "Cache-Control": "public, max-age=86400, immutable" },
     });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("Failed to fetch cities:", err);
+    return NextResponse.json({ error: "Failed to load cities" }, { status: 500 });
   }
 }

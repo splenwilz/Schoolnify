@@ -424,7 +424,7 @@ export const SCHEDULE_PRESETS: SchedulePreset[] = [
     id: "us_traditional_7_50",
     label: "US Traditional (7 × 50 min)",
     startTime: "08:00",
-    endTime: "15:05",
+    endTime: "14:50",
     periodDuration: "50",
     periods: [
       { label: "Period 1", startTime: "08:00", endTime: "08:50", isBreak: false },
@@ -501,7 +501,7 @@ export const SCHEDULE_PRESETS: SchedulePreset[] = [
     id: "de_halfday_6_45",
     label: "German Half-Day (6 × 45 min)",
     startTime: "07:45",
-    endTime: "13:00",
+    endTime: "12:50",
     periodDuration: "45",
     periods: [
       { label: "Stunde 1", startTime: "07:45", endTime: "08:30", isBreak: false },
@@ -518,7 +518,7 @@ export const SCHEDULE_PRESETS: SchedulePreset[] = [
     id: "ab_block_85",
     label: "A/B Rotating Block (4 × 85 min)",
     startTime: "08:00",
-    endTime: "15:10",
+    endTime: "14:35",
     periodDuration: "85",
     periods: [
       { label: "Block A1 / B1", startTime: "08:00", endTime: "09:25", isBreak: false },

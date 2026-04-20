@@ -31,7 +31,7 @@ export function InviteModal({ isOpen, onClose, roles }: InviteModalProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Visual only. no actual submission
+    // Visual only. No actual submission
     onClose();
   };
 

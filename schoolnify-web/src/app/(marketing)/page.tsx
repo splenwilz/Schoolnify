@@ -33,7 +33,7 @@ export default function Home() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#10B981]"></span>
               </span>
-              v1.0 now available. see what&apos;s new
+              v1.0 now available. See what&apos;s new
             </div>
 
             {/* Main headline */}

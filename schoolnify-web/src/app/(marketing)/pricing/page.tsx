@@ -89,7 +89,7 @@ const faqs = [
   },
   {
     question: "Is there a discount for annual billing?",
-    answer: "Yes! Pay annually and save about 18%. that's equivalent to getting 2 months free. Plus, you get priority support.",
+    answer: "Yes! Pay annually and save about 18%. That's equivalent to getting 2 months free. Plus, you get priority support.",
   },
   {
     question: "Do you offer discounts for public schools?",

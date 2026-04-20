@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { CalendarDays, Plus, Trash2 } from "lucide-react";
 import { SectionCard, Field, TextInput } from "./form-primitives";
@@ -61,7 +60,7 @@ export function TermsSection({
           ) : (
             <>Set your current academic year in Academic Structure above. </>
           )}
-          The term structure (names and count) stays the same each year. only the dates need updating when a new session begins.
+          The term structure (names and count) stays the same each year. Only the dates need updating when a new session begins.
         </p>
       </div>
 

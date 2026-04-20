@@ -286,30 +286,28 @@ export default function SchoolSetupPage() {
   // When calendar type changes, replace terms with the new structure.
   // Warn if user already entered dates (their term data will be lost).
   const setCalendarType = (type: string) => {
-    setData((prev) => {
-      // If switching to the same type, no-op
-      if (prev.calendarType === type) return prev;
+    if (data.calendarType === type) return;
 
-      // Custom = keep user's existing terms (or start empty)
-      if (type === "term") {
-        return { ...prev, calendarType: type };
-      }
+    // Custom = keep user's existing terms
+    if (type === "term") {
+      update("calendarType", type);
+      return;
+    }
 
-      // Standard types: replace terms with the new structure
-      const hasData = prev.terms.some((t) => t.startDate || t.endDate);
-      if (hasData && typeof window !== "undefined") {
-        const ok = window.confirm(
-          "Changing the calendar type will replace your current terms. Any dates you've entered will be cleared. Continue?"
-        );
-        if (!ok) return prev;
-      }
+    // Warn if user already entered dates
+    const hasData = data.terms.some((t) => t.startDate || t.endDate);
+    if (hasData && typeof window !== "undefined") {
+      const ok = window.confirm(
+        "Changing the calendar type will replace your current terms. Any dates you've entered will be cleared. Continue?"
+      );
+      if (!ok) return;
+    }
 
-      return {
-        ...prev,
-        calendarType: type,
-        terms: (TERM_STRUCTURES[type] || []).map((t) => ({ name: t.name, startDate: "", endDate: "" })),
-      };
-    });
+    setData((prev) => ({
+      ...prev,
+      calendarType: type,
+      terms: (TERM_STRUCTURES[type] || []).map((t) => ({ name: t.name, startDate: "", endDate: "" })),
+    }));
   };
 
   const addTerm = () => {
@@ -398,6 +396,12 @@ export default function SchoolSetupPage() {
   const applyFeePreset = (presetId: string) => {
     const preset = FEE_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
+    // Warn if existing categories have amounts entered
+    const hasData = data.feeCategories.some((f) => Object.values(f.amounts).some((a) => a && a !== "0"));
+    if (hasData && typeof window !== "undefined") {
+      const ok = window.confirm("This will replace your current fee categories. Any amounts you've entered will be cleared. Continue?");
+      if (!ok) return;
+    }
     setData((prev) => {
       const newFees: FeeCategory[] = preset.items.map((f) => ({
         name: f.name, mandatory: f.mandatory, frequency: f.frequency, feeType: f.feeType,

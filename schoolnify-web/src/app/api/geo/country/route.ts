@@ -11,10 +11,15 @@ export async function GET(request: NextRequest) {
     if (!country) {
       return NextResponse.json({ error: "Country not found" }, { status: 404 });
     }
-    return NextResponse.json(country, {
-      headers: { "Cache-Control": "public, max-age=86400, immutable" },
-    });
+    // Return only fields used by location-picker
+    const c = country as unknown as Record<string, unknown>;
+    const { name, iso2, iso3, currency, currency_symbol, currency_name, timezones, phone_code } = c;
+    return NextResponse.json(
+      { name, iso2, iso3, currency, currency_symbol, currency_name, timezones, phone_code },
+      { headers: { "Cache-Control": "public, max-age=86400, immutable" } },
+    );
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("Failed to fetch country:", err);
+    return NextResponse.json({ error: "Failed to load country details" }, { status: 500 });
   }
 }

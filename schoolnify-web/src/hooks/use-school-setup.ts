@@ -413,9 +413,9 @@ export function useSchoolSetup() {
       if (Object.keys(patch).length === 0) return Promise.resolve(query.data!);
       return schoolApi.patchSetup(patch);
     },
-    onSuccess: (response) => {
+    onSuccess: (response, variables) => {
       queryClient.setQueryData(SETUP_QUERY_KEY, response);
-      previousDataRef.current = localData;
+      previousDataRef.current = variables;
     },
   });
 

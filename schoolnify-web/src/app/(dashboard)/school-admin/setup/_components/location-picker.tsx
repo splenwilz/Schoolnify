@@ -95,12 +95,14 @@ export function StateSelect({
       setStates([]);
       return;
     }
+    const controller = new AbortController();
     setLoading(true);
-    fetch(`/api/geo/states?country=${encodeURIComponent(countryCode)}`)
+    fetch(`/api/geo/states?country=${encodeURIComponent(countryCode)}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : []))
-      .then((list: StateInfo[]) => setStates(list))
-      .catch(() => setStates([]))
-      .finally(() => setLoading(false));
+      .then((list: StateInfo[]) => { if (!controller.signal.aborted) setStates(list); })
+      .catch(() => { if (!controller.signal.aborted) setStates([]); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
   }, [countryCode]);
 
   useEffect(() => {

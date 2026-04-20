@@ -52,10 +52,12 @@ export function AcademicYearPicker({
     onChange(formatAcademicYear(newStart, newEnd));
   };
 
-  // Year options: current year ± 5
+  // Year options: current year ± 5, expanded to include parsed start/end
   const currentYear = new Date().getFullYear();
+  const minYear = Math.min(currentYear - 5, isFinite(start) ? start : currentYear);
+  const maxYear = Math.max(currentYear + 5, isFinite(end) ? end : currentYear);
   const yearOptions: number[] = [];
-  for (let y = currentYear - 5; y <= currentYear + 5; y++) yearOptions.push(y);
+  for (let y = minYear; y <= maxYear; y++) yearOptions.push(y);
 
   const selectClass =
     "px-3 py-2 text-[15px] bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[#0891B2]/30";

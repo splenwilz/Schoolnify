@@ -88,7 +88,7 @@ const BAND_FILTERS: { value: string; label: string; depts?: string[]; match?: (s
   {
     value: "secondary",
     label: "Secondary",
-    depts: ["science","commercial","technology","vocational"],
+    depts: ["science","commercial","technology","vocational","arts","humanities","languages"],
   },
 ];
 
