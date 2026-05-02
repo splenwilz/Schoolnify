@@ -447,7 +447,6 @@ export default function SchoolSetupPage() {
   const currentIndex = STEPS.findIndex((s) => s.id === activeStep);
   const isFirstStep = currentIndex === 0;
   const isLastStep = currentIndex === STEPS.length - 1;
-  const firstOptionalIndex = STEPS.findIndex((s) => "optional" in s && s.optional);
 
   const goNext = () => {
     if (!isLastStep) setActiveStep(STEPS[currentIndex + 1].id);

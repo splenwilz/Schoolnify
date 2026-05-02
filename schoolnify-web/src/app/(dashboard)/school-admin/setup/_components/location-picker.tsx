@@ -167,16 +167,19 @@ export function CityInput({
       setCities([]);
       return;
     }
+    const controller = new AbortController();
     setLoading(true);
-    fetch(`/api/geo/cities?country=${encodeURIComponent(countryCode)}&state=${encodeURIComponent(stateCode)}`)
+    fetch(`/api/geo/cities?country=${encodeURIComponent(countryCode)}&state=${encodeURIComponent(stateCode)}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : []))
       .then((list: CityInfo[]) => {
+        if (controller.signal.aborted) return;
         setCities(list);
         if (list.length === 0) setMode("custom");
         else setMode("select");
       })
-      .catch(() => setCities([]))
-      .finally(() => setLoading(false));
+      .catch(() => { if (!controller.signal.aborted) setCities([]); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
   }, [countryCode, stateCode]);
 
   if (!stateCode) {

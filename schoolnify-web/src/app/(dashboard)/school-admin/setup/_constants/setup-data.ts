@@ -1,4 +1,3 @@
-import type { GradeRow } from "../_components/setup-types";
 
 // ---------------------------------------------------------------------------
 // Data

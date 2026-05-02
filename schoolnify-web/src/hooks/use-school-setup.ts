@@ -84,9 +84,9 @@ function apiToSetupData(api: SetupApiData): Partial<SetupData> {
     result.examWeight = String(api.grading.exam_weight ?? "60");
     result.passmark = String(api.grading.passmark ?? "40");
     result.gpaEnabled = api.grading.gpa_enabled ?? false;
-    result.assignmentWeight = String(api.grading.assignment_weight ?? "");
-    result.testWeight = String(api.grading.test_weight ?? "");
-    result.projectWeight = String(api.grading.project_weight ?? "");
+    if (api.grading.assignment_weight != null) result.assignmentWeight = String(api.grading.assignment_weight);
+    if (api.grading.test_weight != null) result.testWeight = String(api.grading.test_weight);
+    if (api.grading.project_weight != null) result.projectWeight = String(api.grading.project_weight);
   }
 
   if (api.schedule) {
@@ -463,8 +463,8 @@ export function useSchoolSetup() {
 
 export function usePublicBranding(slug: string | null) {
   return useQuery<PublicSchoolBranding, ApiError>({
-    queryKey: BRANDING_QUERY_KEY(slug!),
-    queryFn: () => schoolApi.getPublicBranding(slug!),
+    queryKey: BRANDING_QUERY_KEY(slug ?? ""),
+    queryFn: () => { if (!slug) throw new Error("missing slug"); return schoolApi.getPublicBranding(slug); },
     enabled: !!slug,
     staleTime: 10 * 60_000,
     gcTime: 30 * 60_000,
