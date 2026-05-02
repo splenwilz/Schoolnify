@@ -1,28 +1,42 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { ArrowLeft, Save } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CloudUpload,
+  Loader2,
+  Building2,
+  Globe,
+  GraduationCap,
+  BookOpen,
+  BarChart3,
+  Clock,
+  Wallet,
+  Shield,
+  Palette,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSchoolConfig } from "@/lib/school-config-context";
+import { useSchoolSetup } from "@/hooks/use-school-setup";
 
 import {
   GRADE_LEVEL_STRUCTURES,
-  GRADING_PRESETS,
-  FEE_PRESETS,
-  STORAGE_KEY,
+  COUNTRY_TO_STRUCTURE,
+  COUNTRY_TO_CALENDAR,
 } from "./_constants/setup-data";
+import { FEE_PRESETS } from "./_constants/fees";
+import { GRADING_PRESETS } from "./_constants/grading";
 import type { SchedulePreset } from "./_constants/setup-data";
 import {
-  DEFAULT_DATA,
   isIdentityComplete,
   isBrandingComplete,
   isLocationComplete,
   isAcademicComplete,
   isGradingComplete,
   isScheduleComplete,
-  isTermsComplete,
   isSubjectsComplete,
   isFeesComplete,
   isReportCardComplete,
@@ -30,60 +44,51 @@ import {
   isPoliciesComplete,
 } from "./_components/setup-types";
 import type { SetupData, GradeRow, TermDate, PeriodSlot, DivisionSchedule, FeeCategory, PromotionRule } from "./_components/setup-types";
-import { IdentitySection, LocationSection, ReportCardSection, CommunicationSection, BrandingSection } from "./_components/sections-simple";
-import { SubjectsSection, TermsSection, PoliciesSection } from "./_components/sections-medium";
+import { IdentitySection, LocationSection, BrandingSection } from "./_components/sections-simple";
+import { PoliciesSection } from "./_components/section-policies";
+import { SubjectsSection } from "./_components/section-subjects";
 import { AcademicSection, ScheduleSection } from "./_components/section-academic";
-import { GradingSection, FeesSection } from "./_components/section-grading-fees";
+import { GradingSection } from "./_components/section-grading-fees";
+import { FeesSection } from "./_components/section-fees";
+import { StepPicker } from "./_components/step-picker";
 
 // ---------------------------------------------------------------------------
 // Main Page Component
 // ---------------------------------------------------------------------------
 
+// Helper: shift an ISO date string by N years (for year rollover)
+function shiftDateByYear(isoDate: string, years: number): string {
+  if (!isoDate) return "";
+  const d = new Date(isoDate);
+  if (isNaN(d.getTime())) return isoDate;
+  d.setFullYear(d.getFullYear() + years);
+  return d.toISOString().slice(0, 10);
+}
+
+const STEPS = [
+  { id: "identity", label: "School Identity", icon: Building2 },
+  { id: "location", label: "Location & Regional", icon: Globe },
+  { id: "academic", label: "Academic Structure", icon: GraduationCap },
+  { id: "subjects", label: "Subjects", icon: BookOpen },
+  { id: "grading", label: "Grading", icon: BarChart3 },
+  { id: "schedule", label: "Schedule", icon: Clock },
+  { id: "fees", label: "Fees", icon: Wallet },
+  { id: "policies", label: "Policies", icon: Shield },
+  // optional
+  { id: "branding", label: "Branding", icon: Palette, optional: true },
+] as const;
+
 export default function SchoolSetupPage() {
-  const [data, setData] = useState<SetupData>(DEFAULT_DATA);
-  const [expanded, setExpanded] = useState<string>("identity");
-  const [saveMessage, setSaveMessage] = useState(false);
+  const { data, setData, update, save, isLoading, isSaving, isSuccess, saveError } = useSchoolSetup();
+  const [activeStep, setActiveStep] = useState<string>("identity");
   const [customLevelInput, setCustomLevelInput] = useState("");
-  const [subjectInput, setSubjectInput] = useState("");
-  const [feeCategoryInput, setFeeCategoryInput] = useState("");
   const [newSection, setNewSection] = useState("");
 
   const { sections, setSections } = useSchoolConfig();
 
-  // Load from localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setData((prev) => ({ ...prev, ...parsed }));
-      }
-    } catch {
-      // Silently continue
-    }
-  }, []);
-
-  // ---------------------------------------------------------------------------
-  // Generic handlers
-  // ---------------------------------------------------------------------------
-
-  const update = <K extends keyof SetupData>(key: K, value: SetupData[K]) => {
-    setData((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const toggleSection = (id: string) => {
-    setExpanded((prev) => (prev === id ? "" : id));
-  };
-
-  const handleSave = () => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      setSaveMessage(true);
-      setTimeout(() => setSaveMessage(false), 2000);
-    } catch {
-      // Silently continue
-    }
-  };
+  // For section components that still expect expanded/toggleSection
+  const expanded = activeStep;
+  const toggleSection = (_id: string) => {};
 
   // ---------------------------------------------------------------------------
   // Academic structure handlers
@@ -93,9 +98,28 @@ export default function SchoolSetupPage() {
     const structure = GRADE_LEVEL_STRUCTURES.find((s) => s.id === structureId);
     if (structure) {
       const allLevels = structure.groups.flatMap((g) => g.levels);
-      setData((prev) => ({ ...prev, gradeLevelStructureId: structureId, gradeLevels: allLevels }));
+      // Rebuild attendance tracking for new groups (always, not just when empty)
+      const trackingMethods: Record<string, "daily" | "per_subject"> = {};
+      for (const g of structure.groups) trackingMethods[g.name] = "daily";
+      setData((prev) => ({
+        ...prev,
+        gradeLevelStructureId: structureId,
+        gradeLevels: allLevels,
+        attendanceTrackingMethods: trackingMethods,
+      }));
     }
   };
+
+  // Auto-suggest grade level structure + calendar from country
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!data.country || data.gradeLevelStructureId) return;
+    const code = data.country.toUpperCase();
+    const suggestedStructure = COUNTRY_TO_STRUCTURE[code];
+    if (suggestedStructure) selectGradeLevelStructure(suggestedStructure);
+    const suggestedCalendar = COUNTRY_TO_CALENDAR[code];
+    if (suggestedCalendar && !data.calendarType) update("calendarType", suggestedCalendar);
+  }, [data.country]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addCustomLevel = () => {
     const trimmed = customLevelInput.trim();
@@ -251,29 +275,64 @@ export default function SchoolSetupPage() {
   // Term handlers
   // ---------------------------------------------------------------------------
 
-  const TERM_PRESETS: { id: string; label: string; calendarTypes?: string[]; terms: { name: string }[] }[] = [
-    { id: "2_semester", label: "2 Semesters", calendarTypes: ["semester"], terms: [{ name: "First Semester" }, { name: "Second Semester" }] },
-    { id: "3_term", label: "3 Terms", calendarTypes: ["trimester", "term"], terms: [{ name: "First Term" }, { name: "Second Term" }, { name: "Third Term" }] },
-    { id: "4_quarter", label: "4 Quarters", calendarTypes: ["quarter"], terms: [{ name: "Quarter 1" }, { name: "Quarter 2" }, { name: "Quarter 3" }, { name: "Quarter 4" }] },
-    { id: "2_term", label: "2 Terms", terms: [{ name: "First Term" }, { name: "Second Term" }] },
-    { id: "6_half", label: "6 Half-Terms", terms: [{ name: "Autumn 1" }, { name: "Autumn 2" }, { name: "Spring 1" }, { name: "Spring 2" }, { name: "Summer 1" }, { name: "Summer 2" }] },
-  ];
-
-  const getRelevantTermPresets = () => {
-    if (!data.calendarType) return TERM_PRESETS;
-    const matching = TERM_PRESETS.filter((p) => p.calendarTypes?.includes(data.calendarType));
-    const others = TERM_PRESETS.filter((p) => !p.calendarTypes?.includes(data.calendarType));
-    return [...matching, ...others];
+  // Calendar type → term structure mapping. Picking a calendar type auto-creates terms.
+  const TERM_STRUCTURES: Record<string, { name: string }[]> = {
+    semester: [{ name: "First Semester" }, { name: "Second Semester" }],
+    trimester: [{ name: "First Term" }, { name: "Second Term" }, { name: "Third Term" }],
+    quarter: [{ name: "Quarter 1" }, { name: "Quarter 2" }, { name: "Quarter 3" }, { name: "Quarter 4" }],
+    term: [], // Custom. admin adds their own
   };
 
-  const applyTermPreset = (presetId: string) => {
-    const preset = TERM_PRESETS.find((p) => p.id === presetId);
-    if (!preset) return;
-    setData((prev) => ({ ...prev, terms: preset.terms.map((t) => ({ name: t.name, startDate: "", endDate: "" })) }));
+  // When calendar type changes, replace terms with the new structure.
+  // Warn if user already entered dates (their term data will be lost).
+  const setCalendarType = (type: string) => {
+    if (data.calendarType === type) return;
+
+    // Custom = keep user's existing terms
+    if (type === "term") {
+      update("calendarType", type);
+      return;
+    }
+
+    // Warn if user already entered dates
+    const hasData = data.terms.some((t) => t.startDate || t.endDate);
+    if (hasData && typeof window !== "undefined") {
+      const ok = window.confirm(
+        "Changing the calendar type will replace your current terms. Any dates you've entered will be cleared. Continue?"
+      );
+      if (!ok) return;
+    }
+
+    setData((prev) => ({
+      ...prev,
+      calendarType: type,
+      terms: (TERM_STRUCTURES[type] || []).map((t) => ({ name: t.name, startDate: "", endDate: "" })),
+    }));
   };
 
   const addTerm = () => {
     setData((prev) => ({ ...prev, terms: [...prev.terms, { name: `Term ${prev.terms.length + 1}`, startDate: "", endDate: "" }] }));
+  };
+
+  // Roll over terms to next academic year. Shifts all term dates by +1 year.
+  const rolloverTerms = () => {
+    setData((prev) => {
+      // Shift term dates forward by 1 year
+      const newTerms = prev.terms.map((t) => ({
+        ...t,
+        startDate: shiftDateByYear(t.startDate, 1),
+        endDate: shiftDateByYear(t.endDate, 1),
+      }));
+      // Increment the academic year label (e.g. "2025/2026" → "2026/2027")
+      const match = prev.currentAcademicYear.match(/(\d{4})[^\d]*(\d{4})?/);
+      let newYearLabel = prev.currentAcademicYear;
+      if (match) {
+        const start = parseInt(match[1], 10) + 1;
+        const end = match[2] ? parseInt(match[2], 10) + 1 : start;
+        newYearLabel = start === end ? String(start) : `${start}/${end}`;
+      }
+      return { ...prev, terms: newTerms, currentAcademicYear: newYearLabel };
+    });
   };
 
   const updateTerm = (index: number, field: keyof TermDate, value: string) => {
@@ -289,34 +348,18 @@ export default function SchoolSetupPage() {
   };
 
   // ---------------------------------------------------------------------------
-  // Subject handlers
-  // ---------------------------------------------------------------------------
-
-  const addSubject = () => {
-    const trimmed = subjectInput.trim();
-    if (trimmed && !data.subjects.includes(trimmed)) {
-      update("subjects", [...data.subjects, trimmed]);
-      setSubjectInput("");
-    }
-  };
-
-  const toggleSubject = (subject: string) => {
-    if (data.subjects.includes(subject)) {
-      update("subjects", data.subjects.filter((s) => s !== subject));
-    } else {
-      update("subjects", [...data.subjects, subject]);
-    }
-  };
-
-  // ---------------------------------------------------------------------------
   // Fee handlers
   // ---------------------------------------------------------------------------
 
-  const addFeeCategory = (name?: string) => {
-    const catName = name || feeCategoryInput.trim();
-    if (catName && !data.feeCategories.find((f) => f.name === catName)) {
-      setData((prev) => ({ ...prev, feeCategories: [...prev.feeCategories, { name: catName, mandatory: true, appliesTo: "all", gradeLevels: [], amounts: {} }] }));
-      if (!name) setFeeCategoryInput("");
+  const addFeeCategory = (name: string, frequency?: FeeCategory["frequency"], feeType?: FeeCategory["feeType"]) => {
+    if (name && !data.feeCategories.find((f) => f.name === name)) {
+      setData((prev) => ({
+        ...prev,
+        feeCategories: [...prev.feeCategories, {
+          name, mandatory: true, frequency: frequency || "per_term", feeType: feeType || "tuition",
+          appliesTo: "all", gradeLevels: [], amounts: {},
+        }],
+      }));
     }
   };
 
@@ -353,15 +396,17 @@ export default function SchoolSetupPage() {
   const applyFeePreset = (presetId: string) => {
     const preset = FEE_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
+    // Warn if existing categories have amounts entered
+    const hasData = data.feeCategories.some((f) => Object.values(f.amounts).some((a) => a && a !== "0"));
+    if (hasData && typeof window !== "undefined") {
+      const ok = window.confirm("This will replace your current fee categories. Any amounts you've entered will be cleared. Continue?");
+      if (!ok) return;
+    }
     setData((prev) => {
-      const currency = prev.currency || "USD";
-      const levels = prev.gradeLevels.length > 0 ? prev.gradeLevels : [];
-      const newFees = preset.fees.map((f) => {
-        const defaultAmount = f.defaults[currency] || f.defaults["USD"] || "0";
-        const amounts: Record<string, string> = { _flat: defaultAmount };
-        for (const level of levels) amounts[level] = defaultAmount;
-        return { name: f.name, mandatory: f.mandatory, appliesTo: "all" as const, gradeLevels: [] as string[], amounts };
-      });
+      const newFees: FeeCategory[] = preset.items.map((f) => ({
+        name: f.name, mandatory: f.mandatory, frequency: f.frequency, feeType: f.feeType,
+        appliesTo: "all" as const, gradeLevels: [] as string[], amounts: {},
+      }));
       return { ...prev, feeCategories: newFees };
     });
   };
@@ -386,11 +431,8 @@ export default function SchoolSetupPage() {
       { id: "subjects", complete: isSubjectsComplete(data) },
       { id: "grading", complete: isGradingComplete(data) },
       { id: "schedule", complete: isScheduleComplete(data) },
-      { id: "terms", complete: isTermsComplete(data) },
       { id: "fees", complete: isFeesComplete(data) },
       { id: "policies", complete: isPoliciesComplete(data) },
-      { id: "reportcard", complete: isReportCardComplete(data) },
-      { id: "comms", complete: isCommsComplete(data) },
       { id: "branding", complete: isBrandingComplete(data) },
     ],
     [data]
@@ -402,15 +444,91 @@ export default function SchoolSetupPage() {
   // Render
   // ---------------------------------------------------------------------------
 
+  const currentIndex = STEPS.findIndex((s) => s.id === activeStep);
+  const isFirstStep = currentIndex === 0;
+  const isLastStep = currentIndex === STEPS.length - 1;
+
+  const goNext = () => {
+    if (!isLastStep) setActiveStep(STEPS[currentIndex + 1].id);
+  };
+  const goBack = () => {
+    if (!isFirstStep) setActiveStep(STEPS[currentIndex - 1].id);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex gap-8 pb-24">
+        <div className="hidden lg:block w-56 shrink-0 space-y-2">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <div key={`skel-${i}`} className="h-9 rounded-lg bg-[var(--border)] animate-pulse" />
+          ))}
+        </div>
+        <div className="flex-1 space-y-4">
+          <div className="w-48 h-7 rounded bg-[var(--border)] animate-pulse mb-2" />
+          <div className="w-72 h-4 rounded bg-[var(--border)] animate-pulse mb-6" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={`field-${i}`} className="space-y-2">
+              <div className="w-28 h-4 rounded bg-[var(--border)] animate-pulse" />
+              <div className="h-10 rounded-lg bg-[var(--border)] animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Render the active section's content (without the SectionCard wrapper. shown directly)
+  const renderActiveSection = () => {
+    const sectionProps = { data, update, expanded, toggleSection };
+    switch (activeStep) {
+      case "identity": return <IdentitySection {...sectionProps} />;
+      case "location": return <LocationSection {...sectionProps} />;
+      case "academic": return (
+        <AcademicSection {...sectionProps}
+          setCalendarType={setCalendarType}
+          selectGradeLevelStructure={selectGradeLevelStructure}
+          customLevelInput={customLevelInput} setCustomLevelInput={setCustomLevelInput}
+          addCustomLevel={addCustomLevel} removeLevel={removeLevel}
+          sections={sections} setSections={setSections}
+          newSection={newSection} setNewSection={setNewSection}
+          addTerm={addTerm} updateTerm={updateTerm} removeTerm={removeTerm}
+          rolloverTerms={rolloverTerms}
+        />
+      );
+      case "subjects": return (
+        <SubjectsSection {...sectionProps} />
+      );
+      case "grading": return (
+        <GradingSection {...sectionProps}
+          selectGradingPreset={selectGradingPreset} updateGradeRow={updateGradeRow}
+          addGradeRow={addGradeRow} removeGradeRow={removeGradeRow}
+        />
+      );
+      case "schedule": return (
+        <ScheduleSection {...sectionProps}
+          getScheduleDivisions={getScheduleDivisions} getOrCreateSchedule={getOrCreateSchedule}
+          updateScheduleField={updateScheduleField} updateDivisionPeriod={updateDivisionPeriod}
+          addDivisionPeriod={addDivisionPeriod} removeDivisionPeriod={removeDivisionPeriod}
+          copyScheduleTo={copyScheduleTo} applySchedulePreset={applySchedulePreset}
+        />
+      );
+      case "fees": return (
+        <FeesSection {...sectionProps}
+          addFeeCategory={addFeeCategory} updateFeeCategory={updateFeeCategory}
+          toggleFeeCategoryLevel={toggleFeeCategoryLevel} updateFeeCategoryAmount={updateFeeCategoryAmount}
+          removeFeeCategory={removeFeeCategory} applyFeePreset={applyFeePreset}
+        />
+      );
+      case "policies": return <PoliciesSection {...sectionProps} updatePromotionRule={updatePromotionRule} />;
+      case "branding": return <BrandingSection {...sectionProps} />;
+      default: return null;
+    }
+  };
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="max-w-[900px] mx-auto pb-24"
-    >
+    <div className="pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
           <Link
             href="/school-admin"
@@ -420,99 +538,125 @@ export default function SchoolSetupPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-[var(--foreground)]">School Setup</h1>
-            <p className="text-[13px] text-[var(--muted)] mt-0.5">
+            <p className="text-[15px] text-[var(--muted)] mt-1">
               {completedCount} of {setupSections.length} sections completed
             </p>
           </div>
         </div>
-        <div className="hidden sm:flex items-center gap-1.5">
-          {setupSections.map((s) => (
-            <div key={s.id} className={cn("w-2 h-2 rounded-full transition-colors", s.complete ? "bg-[#10B981]" : "bg-[var(--border)]")} />
-          ))}
+        {/* Save status */}
+        <div className="flex items-center gap-3">
+          <AnimatePresence>
+            {isSuccess && (
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-[15px] font-medium text-[#10B981]">
+                Saved
+              </motion.span>
+            )}
+            {saveError && (
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-[15px] font-medium text-[#EF4444]">
+                Failed to save
+              </motion.span>
+            )}
+          </AnimatePresence>
+          {isSaving && <Loader2 className="w-5 h-5 animate-spin text-[var(--muted)]" />}
         </div>
       </div>
 
-      <div className="space-y-4">
-        {/* Essential sections */}
-        <IdentitySection data={data} update={update} expanded={expanded} toggleSection={toggleSection} />
-        <LocationSection data={data} update={update} expanded={expanded} toggleSection={toggleSection} />
-        <AcademicSection
-          data={data} update={update} expanded={expanded} toggleSection={toggleSection}
-          selectGradeLevelStructure={selectGradeLevelStructure}
-          customLevelInput={customLevelInput} setCustomLevelInput={setCustomLevelInput}
-          addCustomLevel={addCustomLevel} removeLevel={removeLevel}
-          sections={sections} setSections={setSections}
-          newSection={newSection} setNewSection={setNewSection}
-        />
-        <SubjectsSection
-          data={data} update={update} expanded={expanded} toggleSection={toggleSection}
-          subjectInput={subjectInput} setSubjectInput={setSubjectInput}
-          addSubject={addSubject} toggleSubject={toggleSubject}
-        />
-        <GradingSection
-          data={data} update={update} expanded={expanded} toggleSection={toggleSection}
-          selectGradingPreset={selectGradingPreset} updateGradeRow={updateGradeRow}
-          addGradeRow={addGradeRow} removeGradeRow={removeGradeRow}
-        />
-        <ScheduleSection
-          data={data} update={update} expanded={expanded} toggleSection={toggleSection}
-          getScheduleDivisions={getScheduleDivisions} getOrCreateSchedule={getOrCreateSchedule}
-          updateScheduleField={updateScheduleField} updateDivisionPeriod={updateDivisionPeriod}
-          addDivisionPeriod={addDivisionPeriod} removeDivisionPeriod={removeDivisionPeriod}
-          copyScheduleTo={copyScheduleTo} applySchedulePreset={applySchedulePreset}
-        />
-        <TermsSection
-          data={data} update={update} expanded={expanded} toggleSection={toggleSection}
-          addTerm={addTerm} updateTerm={updateTerm} removeTerm={removeTerm}
-          applyTermPreset={applyTermPreset} getRelevantTermPresets={getRelevantTermPresets}
-        />
-        <FeesSection
-          data={data} update={update} expanded={expanded} toggleSection={toggleSection}
-          addFeeCategory={addFeeCategory} updateFeeCategory={updateFeeCategory}
-          toggleFeeCategoryLevel={toggleFeeCategoryLevel} updateFeeCategoryAmount={updateFeeCategoryAmount}
-          removeFeeCategory={removeFeeCategory} applyFeePreset={applyFeePreset}
-          feeCategoryInput={feeCategoryInput} setFeeCategoryInput={setFeeCategoryInput}
-        />
-        <PoliciesSection data={data} update={update} expanded={expanded} toggleSection={toggleSection} updatePromotionRule={updatePromotionRule} />
-
-        {/* Optional divider */}
-        <div className="flex items-center gap-3 pt-4 pb-1">
-          <div className="h-px flex-1 bg-[var(--border)]" />
-          <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider">Optional</span>
-          <div className="h-px flex-1 bg-[var(--border)]" />
-        </div>
-
-        <ReportCardSection data={data} update={update} expanded={expanded} toggleSection={toggleSection} />
-        <CommunicationSection data={data} update={update} expanded={expanded} toggleSection={toggleSection} />
-        <BrandingSection data={data} update={update} expanded={expanded} toggleSection={toggleSection} />
+      {/* Auto-save info banner */}
+      <div className="flex items-center gap-3 mb-8 py-3 px-4 rounded-lg bg-[#0891B2]/5 border border-[#0891B2]/15 text-[15px]">
+        <svg className="w-5 h-5 text-[#0891B2] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p className="text-[var(--foreground-secondary)]">
+          Your progress is saved automatically a few seconds after each change. You can leave and come back anytime.
+        </p>
       </div>
 
-      {/* Sticky Save Bar */}
-      <div className="fixed bottom-0 left-0 right-0 lg:left-64 z-40 bg-[var(--card)]/95 backdrop-blur-sm border-t border-[var(--border)] px-6 py-4">
-        <div className="max-w-[900px] mx-auto flex items-center justify-between">
-          <p className="text-[13px] text-[var(--muted)]">
-            {completedCount === setupSections.length
-              ? "All sections completed!"
-              : `${setupSections.length - completedCount} section${setupSections.length - completedCount !== 1 ? "s" : ""} remaining`}
-          </p>
-          <div className="flex items-center gap-3">
-            <AnimatePresence>
-              {saveMessage && (
-                <motion.span initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="text-[13px] font-medium text-[#10B981]">
-                  Changes saved!
-                </motion.span>
-              )}
-            </AnimatePresence>
-            <button
-              onClick={handleSave}
-              className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#0891B2] rounded-xl hover:bg-[#0E7490] shadow-sm shadow-[#0891B2]/25 transition-all"
+      {/* Step indicator. Stripe style: flat, minimal */}
+      {(() => {
+        const currentStep = STEPS[currentIndex];
+        return (
+          <div className="mb-10">
+            {/* Step counter + jump */}
+            <div className="flex items-baseline justify-between mb-2">
+              <p className="text-[15px] text-[var(--muted)] tabular-nums">
+                {currentIndex + 1} / {STEPS.length}
+                {"optional" in currentStep && currentStep.optional ? " (optional)" : ""}
+              </p>
+              <StepPicker
+                steps={STEPS}
+                activeStep={activeStep}
+                sections={setupSections}
+                onSelect={setActiveStep}
+              />
+            </div>
+            {/* Progress bar */}
+            <div className="h-1 rounded-full bg-[var(--border)] overflow-hidden mb-7">
+              <div
+                className="h-full rounded-full bg-[#0891B2] transition-all duration-500"
+                style={{ width: `${((currentIndex + 1) / STEPS.length) * 100}%` }}
+              />
+            </div>
+            {/* Step title */}
+            <h2 className="text-xl font-semibold text-[var(--foreground)] tracking-tight">{currentStep.label}</h2>
+          </div>
+        );
+      })()}
+
+      <div className="max-w-[800px]">
+        {/* Content area */}
+        <div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeStep}
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.2 }}
             >
-              <Save className="w-4 h-4" />
-              Save All Changes
+              {renderActiveSection()}
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Bottom navigation */}
+          <div className="flex items-center justify-between mt-10 pt-7 border-t border-[var(--border)]">
+            <button
+              type="button"
+              onClick={goBack}
+              disabled={isFirstStep}
+              className="flex items-center gap-2 px-5 py-3 text-[15px] font-medium rounded-xl border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--background-secondary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Back
+            </button>
+
+            <button
+              type="button"
+              onClick={save}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-5 py-3 text-[15px] font-medium rounded-xl border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--background-secondary)] disabled:opacity-60 transition-all"
+            >
+              {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudUpload className="w-5 h-5" />}
+              Save
+            </button>
+
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={isLastStep}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 text-[15px] font-medium rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed",
+                isLastStep
+                  ? "border border-[var(--border)] text-[var(--foreground)]"
+                  : "bg-[#0891B2] text-white hover:bg-[#0E7490] shadow-sm shadow-[#0891B2]/25"
+              )}
+            >
+              Next
+              <ArrowRight className="w-5 h-5" />
             </button>
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
+

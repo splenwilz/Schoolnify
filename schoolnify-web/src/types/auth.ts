@@ -18,7 +18,7 @@ export interface AdminSignupOrganization {
   slug: string;
 }
 
-/** 201 response — account created, cookies set */
+/** 201 response. account created, cookies set */
 export interface AdminSignupSuccess {
   user: AdminSignupUser;
   organization: AdminSignupOrganization;
@@ -27,7 +27,7 @@ export interface AdminSignupSuccess {
   subdomain_url: string;
 }
 
-/** 202 response — email verification required */
+/** 202 response. email verification required */
 export interface AdminSignupPending {
   message: string;
   pending_authentication_token: string;

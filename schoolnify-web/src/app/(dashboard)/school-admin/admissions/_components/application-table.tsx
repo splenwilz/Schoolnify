@@ -391,7 +391,7 @@ export function ApplicationTable({
                     {/* Previous School */}
                     <td className="px-4 py-3.5 hidden lg:table-cell">
                       <span className="text-[13px] text-[var(--muted)]">
-                        {app.previousSchool || "—"}
+                        {app.previousSchool || "-"}
                       </span>
                     </td>
 

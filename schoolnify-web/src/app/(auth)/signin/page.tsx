@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, Loader2, GraduationCap, Users, BookOpen, Shield } from "lucide-react";
+import { Eye, EyeOff, Loader2, Users, BookOpen } from "lucide-react";
 import { useLogin } from "@/hooks/use-auth";
 import { ApiError } from "@/api/client";
 import { authApi } from "@/api/endpoints/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { SESSION_QUERY_KEY } from "@/hooks/use-session";
+import { usePublicBranding } from "@/hooks/use-school-setup";
 
 // ---------------------------------------------------------------------------
 // Subdomain detection
@@ -30,52 +31,6 @@ function getSubdomainSlug(): string | null {
   return null;
 }
 
-function slugToSchoolName(slug: string): string {
-  return slug
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
-// ---------------------------------------------------------------------------
-// Demo school data — replace with API call later
-// ---------------------------------------------------------------------------
-
-interface SchoolBranding {
-  name: string;
-  motto: string;
-  initials: string;
-  primaryColor: string;
-  secondaryColor: string;
-  contactEmail: string;
-  studentCount: string;
-  staffCount: string;
-  established: string;
-}
-
-function getSchoolBranding(slug: string): SchoolBranding {
-  const name = slugToSchoolName(slug);
-  const initials = name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  // Demo data — will be replaced with GET /api/v1/schools/{slug}/public
-  return {
-    name,
-    motto: "Excellence in Education",
-    initials,
-    primaryColor: "#0891B2",
-    secondaryColor: "#10B981",
-    contactEmail: `admin@${slug}.edu`,
-    studentCount: "1,200+",
-    staffCount: "85",
-    established: "2015",
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -90,7 +45,24 @@ export default function SignInPage() {
   const queryClient = useQueryClient();
 
   const slug = useMemo(() => getSubdomainSlug(), []);
-  const school = useMemo(() => (slug ? getSchoolBranding(slug) : null), [slug]);
+  const { data: brandingData } = usePublicBranding(slug);
+
+  // Derive school branding from API data (or fallback from slug)
+  const school = useMemo(() => {
+    if (!slug) return null;
+    const name = brandingData?.name
+      ?? slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+    return {
+      name,
+      motto: brandingData?.motto ?? "",
+      initials,
+      primaryColor: brandingData?.primary_color ?? "#0891B2",
+      secondaryColor: brandingData?.secondary_color ?? "#10B981",
+      logoUrl: brandingData?.logo_url ?? null,
+      contactEmail: `admin@${slug}.edu`,
+    };
+  }, [slug, brandingData]);
 
   // Handle cross-origin token handoff via URL hash
   useEffect(() => {
@@ -175,7 +147,9 @@ export default function SignInPage() {
             {school ? (
               <span className="text-white font-bold text-sm">{school.initials}</span>
             ) : (
-              <GraduationCap className="w-6 h-6 text-white" />
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
+              </svg>
             )}
           </div>
           <p className="text-sm text-[var(--muted)]">
@@ -186,11 +160,11 @@ export default function SignInPage() {
     );
   }
 
-  // Subdomain — personalized school login (Filianta-inspired)
+  // Subdomain. personalized school login (Filianta-inspired)
   if (school) {
     return (
       <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex">
-        {/* Left Panel — Clean form */}
+        {/* Left Panel. Clean form */}
         <div className="w-full lg:w-[48%] flex flex-col px-6 py-8 lg:px-16 lg:py-12 lg:bg-[var(--background)]">
           {/* School name - subtle top */}
           <p className="text-sm font-medium text-[var(--muted)] tracking-wide mb-auto hidden lg:block">
@@ -224,7 +198,7 @@ export default function SignInPage() {
             {/* Header */}
             <h1 className="text-2xl font-bold mb-1.5">Welcome Back</h1>
             <p className="text-[var(--muted)] text-sm mb-8">
-              Sign in to {school.name} — Let&apos;s get you back in
+              Sign in to {school.name}. Let&apos;s get you back in
             </p>
 
             {/* Divider */}
@@ -334,7 +308,7 @@ export default function SignInPage() {
             </p>
           </div>
 
-          {/* Powered by — bottom */}
+          {/* Powered by. bottom */}
           <div className="mt-auto pt-8 flex items-center gap-2 text-xs text-[var(--muted)]">
             <span>Powered by</span>
             <Link href="https://schoolnify.com" className="font-semibold text-[var(--foreground)] hover:opacity-80 transition-opacity">
@@ -343,7 +317,7 @@ export default function SignInPage() {
           </div>
         </div>
 
-        {/* Right Panel — Rich branded panel */}
+        {/* Right Panel. Rich branded panel */}
         <div className="hidden lg:flex lg:w-[52%] relative overflow-hidden">
           {/* Deep gradient background */}
           <div
@@ -362,7 +336,7 @@ export default function SignInPage() {
           <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")" }} />
 
           {/* Decorative elements */}
-          {/* Large crest watermark — offset right */}
+          {/* Large crest watermark. offset right */}
           <div className="absolute top-[15%] right-[-5%] w-[420px] h-[420px] rounded-full border border-white/[0.07] flex items-center justify-center">
             <div className="w-[320px] h-[320px] rounded-full border border-white/[0.07] flex items-center justify-center">
               <div className="w-[220px] h-[220px] rounded-full border border-white/[0.08] flex items-center justify-center">
@@ -415,7 +389,7 @@ export default function SignInPage() {
           <div className="absolute bottom-[12%] left-[40%] w-20 h-px bg-white/10" />
 
           <div className="relative z-10 flex flex-col justify-between p-14 w-full text-white h-full">
-            {/* Top — badge + motto */}
+            {/* Top. badge + motto */}
             <div className="flex items-center justify-between">
               <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
                 <span className="text-white font-bold text-sm">{school.initials}</span>
@@ -423,18 +397,18 @@ export default function SignInPage() {
               <p className="text-sm text-white/40 italic">&ldquo;{school.motto}&rdquo;</p>
             </div>
 
-            {/* Center — school name */}
+            {/* Center. school name */}
             <div>
               <h2 className="text-[3.25rem] font-bold leading-[1.1] tracking-tight mb-4">
                 {school.name}
               </h2>
               <div className="w-12 h-0.5 bg-white/20 mb-5" />
               <p className="text-white/50 text-[15px] max-w-sm leading-relaxed">
-                Sign in to access your portal — results, schedules, updates, and more.
+                Sign in to access your portal. results, schedules, updates, and more.
               </p>
             </div>
 
-            {/* Bottom — secure + powered by */}
+            {/* Bottom. secure + powered by */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-400/80" />
@@ -450,7 +424,7 @@ export default function SignInPage() {
     );
   }
 
-  // Main site — generic Schoolnify login
+  // Main site. generic Schoolnify login
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex">
       {/* Left Panel - Decorative */}
@@ -504,7 +478,7 @@ export default function SignInPage() {
               ))}
             </div>
             <p className="text-[var(--muted)] mb-4">
-              &quot;Schoolnify transformed how we manage our school. Attendance tracking, grade management, and parent communication — all in one place.&quot;
+              &quot;Schoolnify transformed how we manage our school. Attendance tracking, grade management, and parent communication. all in one place.&quot;
             </p>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0891B2] to-[#10B981] flex items-center justify-center font-bold text-white">
@@ -519,7 +493,7 @@ export default function SignInPage() {
         </div>
       </div>
 
-      {/* Right Panel — Form */}
+      {/* Right Panel. Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           <div className="text-center mb-8 lg:hidden">

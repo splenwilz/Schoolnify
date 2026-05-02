@@ -33,26 +33,26 @@ export function proxy(request: NextRequest) {
   const hostname = request.headers.get("host") ?? "";
   const slug = getSubdomainSlug(hostname);
 
-  // No subdomain — main site, pass through
+  // No subdomain. main site, pass through
   if (!slug) return NextResponse.next();
 
   const { pathname } = request.nextUrl;
 
-  // API routes — pass through so Next.js rewrites can proxy to backend
+  // API routes. pass through so Next.js rewrites can proxy to backend
   if (pathname.startsWith("/api/")) {
     const response = NextResponse.next();
     response.headers.set("x-school-slug", slug);
     return response;
   }
 
-  // Auth routes — pass through without rewriting (shared across main site & subdomains)
+  // Auth routes. pass through without rewriting (shared across main site & subdomains)
   if (pathname === "/signin" || pathname === "/signup" || pathname.startsWith("/verify-email")) {
     const response = NextResponse.next();
     response.headers.set("x-school-slug", slug);
     return response;
   }
 
-  // Already on /school-admin — pass through
+  // Already on /school-admin. pass through
   if (pathname.startsWith("/school-admin")) {
     const response = NextResponse.next();
     response.headers.set("x-school-slug", slug);

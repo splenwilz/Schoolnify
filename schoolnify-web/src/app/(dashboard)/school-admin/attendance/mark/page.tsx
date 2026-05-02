@@ -315,7 +315,7 @@ function MarkAttendanceContent() {
             Attendance Submitted
           </h2>
           <p className="text-sm text-[var(--muted)] mb-4">
-            {fmtClass(selectedClass.className)} — {stats.present} present, {stats.absent} absent, {stats.late} late
+            {fmtClass(selectedClass.className)}. {stats.present} present, {stats.absent} absent, {stats.late} late
           </p>
           <div className="flex items-center justify-center gap-3">
             <button

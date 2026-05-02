@@ -122,7 +122,7 @@ export function FeeStructureTab() {
     <div className="space-y-6">
       {/* ── Summary Cards ─────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Fee Categories — mini donut showing mandatory vs optional */}
+        {/* Card 1: Fee Categories. mini donut showing mandatory vs optional */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -180,7 +180,7 @@ export function FeeStructureTab() {
           </div>
         </motion.div>
 
-        {/* Card 2: Active Fees — progress bar with ratio */}
+        {/* Card 2: Active Fees. progress bar with ratio */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -221,7 +221,7 @@ export function FeeStructureTab() {
           </div>
         </motion.div>
 
-        {/* Card 3: Expected Revenue — with breakdown bars */}
+        {/* Card 3: Expected Revenue. with breakdown bars */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -271,7 +271,7 @@ export function FeeStructureTab() {
           </div>
         </motion.div>
 
-        {/* Card 4: Discounts & Savings — with beneficiary count */}
+        {/* Card 4: Discounts & Savings. with beneficiary count */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -442,7 +442,7 @@ export function FeeStructureTab() {
                   const isExpanded = expandedRows.has(fee.id);
                   const firstNum = grades[0]?.replace("Grade ", "");
                   const lastNum = grades[grades.length - 1]?.replace("Grade ", "");
-                  const gradeRange = grades.length > 0 ? `${firstNum}–${lastNum}` : "—";
+                  const gradeRange = grades.length > 0 ? `${firstNum}–${lastNum}` : "-";
                   const amounts = Object.values(fee.amounts);
                   const minAmt = Math.min(...amounts);
                   const maxAmt = Math.max(...amounts);
@@ -549,7 +549,7 @@ export function FeeStructureTab() {
                   >
                     <div className="px-6 py-4 bg-[var(--background-secondary)]/50">
                       <p className="text-[12px] font-semibold text-[var(--muted)] uppercase tracking-wider mb-3">
-                        {fee.category} — Amount by Grade
+                        {fee.category}. Amount by Grade
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
                         {Object.entries(fee.amounts).map(

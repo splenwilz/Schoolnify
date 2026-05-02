@@ -208,7 +208,7 @@ export function FeesTab({ fees }: FeesTabProps) {
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-[13px] text-[var(--muted)]">
-                      {fee.paidDate ? formatDate(fee.paidDate) : "—"}
+                      {fee.paidDate ? formatDate(fee.paidDate) : "-"}
                     </span>
                   </td>
                 </motion.tr>

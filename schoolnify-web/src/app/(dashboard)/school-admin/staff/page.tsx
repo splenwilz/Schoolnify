@@ -113,7 +113,7 @@ export default function StaffPage() {
         </div>
       </div>
 
-      {/* Row 1: Hero — Team Overview + Mini Stats + Department Chart */}
+      {/* Row 1: Hero. Team Overview + Mini Stats + Department Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
         <div className="lg:col-span-2">
           <TeamOverviewCard />
@@ -126,7 +126,7 @@ export default function StaffPage() {
         </div>
       </div>
 
-      {/* Row 2: Analytics — Staff Growth Chart + Role Distribution */}
+      {/* Row 2: Analytics. Staff Growth Chart + Role Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         <div className="lg:col-span-2">
           <StaffGrowthChart />
@@ -136,7 +136,7 @@ export default function StaffPage() {
         </div>
       </div>
 
-      {/* Row 3: Content — Staff Table + Sidebar */}
+      {/* Row 3: Content. Staff Table + Sidebar */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div className="lg:col-span-8">
           {filteredStaff.length === 0 ? (

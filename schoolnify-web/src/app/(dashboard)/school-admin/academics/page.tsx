@@ -112,7 +112,7 @@ export default function AcademicsPage() {
                     month: "short",
                     day: "numeric",
                   })}{" "}
-                  —{" "}
+                  -{" "}
                   {new Date(currentTerm.endDate).toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
@@ -160,7 +160,7 @@ export default function AcademicsPage() {
             </div>
           </div>
 
-          {/* Right Sidebar — Quick Stats */}
+          {/* Right Sidebar. Quick Stats */}
           <div className="w-full lg:w-72 space-y-4">
             <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]">
               <h3 className="text-sm font-medium text-[var(--foreground)] mb-4">
@@ -255,7 +255,7 @@ export default function AcademicsPage() {
           )}
         </div>
 
-        {/* Tab Navigation — Stripe-style buttons */}
+        {/* Tab Navigation. Stripe-style buttons */}
         <div className="flex items-center gap-2 mb-6">
           {tabs.map((tab) => (
             <button

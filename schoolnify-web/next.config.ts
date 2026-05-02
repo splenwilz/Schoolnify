@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Don't bundle this package — it lazy-loads data files at runtime
+  serverExternalPackages: ["@countrystatecity/countries"],
   async rewrites() {
     return [
       {

@@ -1,4 +1,3 @@
-import type { GradeRow } from "../_components/setup-types";
 
 // ---------------------------------------------------------------------------
 // Data
@@ -10,6 +9,14 @@ export const SCHOOL_TYPES = [
   { label: "K-12 (Primary & Secondary)", value: "k12" },
   { label: "Tertiary / University", value: "tertiary" },
   { label: "Vocational / Technical", value: "vocational" },
+];
+
+export const OWNERSHIP_TYPES = [
+  { label: "Public / Government", value: "public" },
+  { label: "Private", value: "private" },
+  { label: "Religious / Faith-based", value: "religious" },
+  { label: "Charter / Semi-private", value: "charter" },
+  { label: "Community / Non-profit", value: "community" },
 ];
 
 export const COUNTRIES = [
@@ -56,16 +63,16 @@ export const TIMEZONES = [
 ];
 
 export const CURRENCIES = [
-  { label: "NGN (₦) — Nigerian Naira", value: "NGN" },
-  { label: "USD ($) — US Dollar", value: "USD" },
-  { label: "GBP (£) — British Pound", value: "GBP" },
-  { label: "EUR (€) — Euro", value: "EUR" },
-  { label: "GHS (₵) — Ghanaian Cedi", value: "GHS" },
-  { label: "KES (KSh) — Kenyan Shilling", value: "KES" },
-  { label: "ZAR (R) — South African Rand", value: "ZAR" },
-  { label: "INR (₹) — Indian Rupee", value: "INR" },
-  { label: "CAD ($) — Canadian Dollar", value: "CAD" },
-  { label: "AUD ($) — Australian Dollar", value: "AUD" },
+  { label: "NGN (₦). Nigerian Naira", value: "NGN" },
+  { label: "USD ($). US Dollar", value: "USD" },
+  { label: "GBP (£). British Pound", value: "GBP" },
+  { label: "EUR (€). Euro", value: "EUR" },
+  { label: "GHS (₵). Ghanaian Cedi", value: "GHS" },
+  { label: "KES (KSh). Kenyan Shilling", value: "KES" },
+  { label: "ZAR (R). South African Rand", value: "ZAR" },
+  { label: "INR (₹). Indian Rupee", value: "INR" },
+  { label: "CAD ($). Canadian Dollar", value: "CAD" },
+  { label: "AUD ($). Australian Dollar", value: "AUD" },
 ];
 
 export const DATE_FORMATS = [
@@ -84,10 +91,10 @@ export const LANGUAGES = [
 ];
 
 export const CALENDAR_TYPES = [
-  { label: "Semester (2 terms)", value: "semester" },
-  { label: "Trimester (3 terms)", value: "trimester" },
-  { label: "Quarter (4 terms)", value: "quarter" },
-  { label: "Term-based (custom)", value: "term" },
+  { label: "Semester (2 terms per year)", value: "semester" },
+  { label: "Trimester (3 terms per year)", value: "trimester" },
+  { label: "Quarter (4 terms per year)", value: "quarter" },
+  { label: "Custom (set your own term structure)", value: "term" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -188,6 +195,17 @@ export const GRADE_LEVEL_STRUCTURES: GradeLevelStructure[] = [
     ],
   },
   {
+    id: "ib",
+    label: "International Baccalaureate (IB)",
+    region: "International",
+    description: "PYP, MYP, DP, and CP programs",
+    groups: [
+      { name: "Primary Years (PYP)", levels: ["PYP 1", "PYP 2", "PYP 3", "PYP 4", "PYP 5", "PYP 6"] },
+      { name: "Middle Years (MYP)", levels: ["MYP 1", "MYP 2", "MYP 3", "MYP 4", "MYP 5"] },
+      { name: "Diploma (DP)", levels: ["DP 1", "DP 2"] },
+    ],
+  },
+  {
     id: "custom_levels",
     label: "Custom",
     region: "Any",
@@ -208,286 +226,83 @@ export const REPORT_CARD_TEMPLATES = [
   { label: "Minimal (scores only)", value: "minimal" },
 ];
 
-export const COMMON_SUBJECTS = [
-  // Core / universal
-  "Mathematics", "English Language", "Science", "Social Studies", "Biology",
-  "Chemistry", "Physics", "Geography", "History", "Economics",
-  "Computer Science", "Physical Education", "Music", "Art",
-  // Languages
-  "French", "Spanish", "Arabic", "German", "Mandarin", "Portuguese", "Swahili",
-  // US-common
-  "Algebra", "Geometry", "Calculus", "Statistics", "US History", "World History",
-  "English Literature", "Earth Science", "Environmental Science", "Psychology",
-  "Sociology", "Health", "Drama",
-  // UK-common
-  "Design & Technology", "Religious Education", "Citizenship", "Media Studies",
-  "Food Technology", "Business Studies", "ICT",
-  // Nigeria / West Africa
-  "Further Mathematics", "Civic Education", "Government", "Literature in English",
-  "Agricultural Science", "Home Economics", "Technical Drawing", "Commerce",
-  "Accounting", "Religious Studies", "Yoruba", "Igbo", "Hausa",
-  // General
-  "Fine Art", "Health Education",
-];
-
-export const COMMON_FEE_CATEGORIES = [
-  "Tuition", "Registration", "Boarding", "Feeding", "Transport", "Uniform",
-  "Books & Materials", "Laboratory", "ICT / Computer", "Sports",
-  "PTA Levy", "Development Levy", "Examination Fee", "Extra-curricular",
-  "Medical", "Library", "Graduation", "Technology Fee", "Activity Fee",
-  "Field Trips", "Insurance", "Maintenance Levy",
-];
-
-// ---------------------------------------------------------------------------
-// Fee Presets
-// ---------------------------------------------------------------------------
-
-export interface FeePresetItem {
-  name: string;
-  mandatory: boolean;
-  /** Default amount per currency (used as starting point — schools adjust) */
-  defaults: Record<string, string>;
-}
-
-// Helper: common fee defaults across currencies
-// Keyed by: NGN, USD, GBP, EUR, GHS, KES, ZAR, INR
-export const fd = (ngn: string, usd: string, gbp: string, eur: string, ghs: string, kes: string, zar: string, inr: string): Record<string, string> =>
-  ({ NGN: ngn, USD: usd, GBP: gbp, EUR: eur, GHS: ghs, KES: kes, ZAR: zar, INR: inr, CAD: usd, AUD: usd });
-
-export const FEE_PRESETS: { id: string; label: string; fees: FeePresetItem[] }[] = [
-  {
-    id: "day_basic",
-    label: "Day School — Basic",
-    fees: [
-      { name: "Tuition", mandatory: true, defaults: fd("50000", "500", "400", "450", "2000", "30000", "5000", "25000") },
-      { name: "Registration", mandatory: true, defaults: fd("5000", "50", "40", "45", "200", "3000", "500", "2500") },
-      { name: "Books & Materials", mandatory: true, defaults: fd("15000", "150", "120", "130", "600", "10000", "1500", "8000") },
-      { name: "Examination Fee", mandatory: true, defaults: fd("10000", "100", "80", "90", "400", "5000", "1000", "5000") },
-      { name: "ICT / Computer", mandatory: false, defaults: fd("5000", "50", "40", "45", "200", "3000", "500", "2500") },
-      { name: "Sports", mandatory: false, defaults: fd("3000", "30", "25", "28", "120", "2000", "300", "1500") },
-    ],
-  },
-  {
-    id: "day_full",
-    label: "Day School — Full",
-    fees: [
-      { name: "Tuition", mandatory: true, defaults: fd("75000", "800", "600", "700", "3500", "50000", "8000", "40000") },
-      { name: "Registration", mandatory: true, defaults: fd("10000", "100", "80", "90", "400", "5000", "800", "5000") },
-      { name: "Books & Materials", mandatory: true, defaults: fd("20000", "200", "150", "170", "800", "15000", "2000", "10000") },
-      { name: "Examination Fee", mandatory: true, defaults: fd("15000", "150", "120", "130", "600", "8000", "1500", "7000") },
-      { name: "Laboratory", mandatory: true, defaults: fd("10000", "100", "80", "90", "400", "5000", "1000", "5000") },
-      { name: "ICT / Computer", mandatory: true, defaults: fd("10000", "100", "80", "90", "400", "5000", "1000", "5000") },
-      { name: "Sports", mandatory: false, defaults: fd("5000", "50", "40", "45", "200", "3000", "500", "2500") },
-      { name: "Library", mandatory: false, defaults: fd("3000", "30", "25", "28", "120", "2000", "300", "1500") },
-      { name: "PTA Levy", mandatory: true, defaults: fd("5000", "50", "40", "45", "200", "3000", "500", "2500") },
-      { name: "Development Levy", mandatory: true, defaults: fd("10000", "100", "80", "90", "400", "5000", "1000", "5000") },
-      { name: "Extra-curricular", mandatory: false, defaults: fd("5000", "50", "40", "45", "200", "3000", "500", "2500") },
-    ],
-  },
-  {
-    id: "boarding",
-    label: "Boarding School",
-    fees: [
-      { name: "Tuition", mandatory: true, defaults: fd("100000", "1500", "1200", "1300", "5000", "80000", "15000", "60000") },
-      { name: "Registration", mandatory: true, defaults: fd("10000", "100", "80", "90", "400", "5000", "800", "5000") },
-      { name: "Boarding", mandatory: true, defaults: fd("80000", "1000", "800", "900", "4000", "60000", "10000", "50000") },
-      { name: "Feeding", mandatory: true, defaults: fd("60000", "800", "600", "700", "3000", "40000", "7000", "35000") },
-      { name: "Books & Materials", mandatory: true, defaults: fd("20000", "200", "150", "170", "800", "15000", "2000", "10000") },
-      { name: "Examination Fee", mandatory: true, defaults: fd("15000", "150", "120", "130", "600", "8000", "1500", "7000") },
-      { name: "Laboratory", mandatory: true, defaults: fd("10000", "100", "80", "90", "400", "5000", "1000", "5000") },
-      { name: "ICT / Computer", mandatory: true, defaults: fd("10000", "100", "80", "90", "400", "5000", "1000", "5000") },
-      { name: "Uniform", mandatory: true, defaults: fd("15000", "150", "120", "130", "600", "10000", "1500", "8000") },
-      { name: "Medical", mandatory: true, defaults: fd("10000", "100", "80", "90", "400", "5000", "1000", "5000") },
-      { name: "Sports", mandatory: false, defaults: fd("5000", "50", "40", "45", "200", "3000", "500", "2500") },
-      { name: "Library", mandatory: false, defaults: fd("3000", "30", "25", "28", "120", "2000", "300", "1500") },
-      { name: "PTA Levy", mandatory: true, defaults: fd("5000", "50", "40", "45", "200", "3000", "500", "2500") },
-      { name: "Development Levy", mandatory: true, defaults: fd("10000", "100", "80", "90", "400", "5000", "1000", "5000") },
-      { name: "Extra-curricular", mandatory: false, defaults: fd("5000", "50", "40", "45", "200", "3000", "500", "2500") },
-      { name: "Transport", mandatory: false, defaults: fd("20000", "200", "150", "170", "800", "15000", "2000", "10000") },
-    ],
-  },
-  {
-    id: "private_premium",
-    label: "Private School — Premium",
-    fees: [
-      { name: "Tuition", mandatory: true, defaults: fd("200000", "3000", "2500", "2800", "10000", "150000", "25000", "100000") },
-      { name: "Registration", mandatory: true, defaults: fd("20000", "200", "150", "170", "800", "10000", "1500", "10000") },
-      { name: "Books & Materials", mandatory: true, defaults: fd("30000", "300", "250", "270", "1200", "20000", "3000", "15000") },
-      { name: "Examination Fee", mandatory: true, defaults: fd("20000", "200", "150", "170", "800", "10000", "2000", "10000") },
-      { name: "Laboratory", mandatory: true, defaults: fd("15000", "150", "120", "130", "600", "8000", "1500", "7000") },
-      { name: "ICT / Computer", mandatory: true, defaults: fd("15000", "150", "120", "130", "600", "8000", "1500", "7000") },
-      { name: "Technology Fee", mandatory: true, defaults: fd("20000", "200", "150", "170", "800", "10000", "2000", "10000") },
-      { name: "Sports", mandatory: true, defaults: fd("10000", "100", "80", "90", "400", "5000", "1000", "5000") },
-      { name: "Library", mandatory: true, defaults: fd("5000", "50", "40", "45", "200", "3000", "500", "2500") },
-      { name: "Activity Fee", mandatory: true, defaults: fd("10000", "100", "80", "90", "400", "5000", "1000", "5000") },
-      { name: "Field Trips", mandatory: false, defaults: fd("15000", "150", "120", "130", "600", "8000", "1500", "7000") },
-      { name: "Transport", mandatory: false, defaults: fd("30000", "300", "250", "270", "1200", "20000", "3000", "15000") },
-      { name: "Uniform", mandatory: true, defaults: fd("25000", "250", "200", "220", "1000", "15000", "2500", "12000") },
-      { name: "Insurance", mandatory: true, defaults: fd("10000", "100", "80", "90", "400", "5000", "1000", "5000") },
-      { name: "Maintenance Levy", mandatory: true, defaults: fd("15000", "150", "120", "130", "600", "8000", "1500", "7000") },
-    ],
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Regional Grading Presets
-// ---------------------------------------------------------------------------
-
-export interface GradingPreset {
-  id: string;
-  label: string;
-  region: string;
-  description: string;
-  passmark: string;
-  grades: GradeRow[];
-}
-
-export const GRADING_PRESETS: GradingPreset[] = [
-  {
-    id: "waec",
-    label: "WAEC / NECO",
-    region: "Nigeria",
-    description: "West African Examinations Council standard (A1–F9)",
-    passmark: "40",
-    grades: [
-      { grade: "A1", minScore: "75", maxScore: "100" },
-      { grade: "B2", minScore: "70", maxScore: "74" },
-      { grade: "B3", minScore: "65", maxScore: "69" },
-      { grade: "C4", minScore: "60", maxScore: "64" },
-      { grade: "C5", minScore: "55", maxScore: "59" },
-      { grade: "C6", minScore: "50", maxScore: "54" },
-      { grade: "D7", minScore: "45", maxScore: "49" },
-      { grade: "E8", minScore: "40", maxScore: "44" },
-      { grade: "F9", minScore: "0", maxScore: "39" },
-    ],
-  },
-  {
-    id: "ng_primary",
-    label: "Primary (A–F)",
-    region: "Nigeria",
-    description: "Common Nigerian primary & junior secondary grading",
-    passmark: "40",
-    grades: [
-      { grade: "A", minScore: "70", maxScore: "100" },
-      { grade: "B", minScore: "60", maxScore: "69" },
-      { grade: "C", minScore: "50", maxScore: "59" },
-      { grade: "D", minScore: "45", maxScore: "49" },
-      { grade: "E", minScore: "40", maxScore: "44" },
-      { grade: "F", minScore: "0", maxScore: "39" },
-    ],
-  },
-  {
-    id: "us_letter",
-    label: "US Letter Grade",
-    region: "United States",
-    description: "Standard A–F letter grading with plus/minus",
-    passmark: "60",
-    grades: [
-      { grade: "A+", minScore: "97", maxScore: "100" },
-      { grade: "A", minScore: "93", maxScore: "96" },
-      { grade: "A-", minScore: "90", maxScore: "92" },
-      { grade: "B+", minScore: "87", maxScore: "89" },
-      { grade: "B", minScore: "83", maxScore: "86" },
-      { grade: "B-", minScore: "80", maxScore: "82" },
-      { grade: "C+", minScore: "77", maxScore: "79" },
-      { grade: "C", minScore: "73", maxScore: "76" },
-      { grade: "C-", minScore: "70", maxScore: "72" },
-      { grade: "D+", minScore: "67", maxScore: "69" },
-      { grade: "D", minScore: "63", maxScore: "66" },
-      { grade: "D-", minScore: "60", maxScore: "62" },
-      { grade: "F", minScore: "0", maxScore: "59" },
-    ],
-  },
-  {
-    id: "uk_gcse",
-    label: "GCSE (9–1)",
-    region: "United Kingdom",
-    description: "England GCSE numerical grading scale",
-    passmark: "40",
-    grades: [
-      { grade: "9", minScore: "90", maxScore: "100" },
-      { grade: "8", minScore: "80", maxScore: "89" },
-      { grade: "7", minScore: "70", maxScore: "79" },
-      { grade: "6", minScore: "60", maxScore: "69" },
-      { grade: "5", minScore: "50", maxScore: "59" },
-      { grade: "4", minScore: "40", maxScore: "49" },
-      { grade: "3", minScore: "30", maxScore: "39" },
-      { grade: "2", minScore: "20", maxScore: "29" },
-      { grade: "1", minScore: "0", maxScore: "19" },
-    ],
-  },
-  {
-    id: "gh_waec",
-    label: "Ghana WASSCE",
-    region: "Ghana",
-    description: "WASSCE grading for Ghanaian schools (A1–F9)",
-    passmark: "50",
-    grades: [
-      { grade: "A1", minScore: "80", maxScore: "100" },
-      { grade: "B2", minScore: "75", maxScore: "79" },
-      { grade: "B3", minScore: "70", maxScore: "74" },
-      { grade: "C4", minScore: "65", maxScore: "69" },
-      { grade: "C5", minScore: "60", maxScore: "64" },
-      { grade: "C6", minScore: "55", maxScore: "59" },
-      { grade: "D7", minScore: "50", maxScore: "54" },
-      { grade: "E8", minScore: "40", maxScore: "49" },
-      { grade: "F9", minScore: "0", maxScore: "39" },
-    ],
-  },
-  {
-    id: "ke_kcse",
-    label: "KCSE",
-    region: "Kenya",
-    description: "Kenya Certificate of Secondary Education (A–E)",
-    passmark: "30",
-    grades: [
-      { grade: "A", minScore: "80", maxScore: "100" },
-      { grade: "A-", minScore: "75", maxScore: "79" },
-      { grade: "B+", minScore: "70", maxScore: "74" },
-      { grade: "B", minScore: "65", maxScore: "69" },
-      { grade: "B-", minScore: "60", maxScore: "64" },
-      { grade: "C+", minScore: "55", maxScore: "59" },
-      { grade: "C", minScore: "50", maxScore: "54" },
-      { grade: "C-", minScore: "45", maxScore: "49" },
-      { grade: "D+", minScore: "40", maxScore: "44" },
-      { grade: "D", minScore: "35", maxScore: "39" },
-      { grade: "D-", minScore: "30", maxScore: "34" },
-      { grade: "E", minScore: "0", maxScore: "29" },
-    ],
-  },
-  {
-    id: "za_nsc",
-    label: "NSC",
-    region: "South Africa",
-    description: "National Senior Certificate (7–1 levels)",
-    passmark: "30",
-    grades: [
-      { grade: "7 (Outstanding)", minScore: "80", maxScore: "100" },
-      { grade: "6 (Meritorious)", minScore: "70", maxScore: "79" },
-      { grade: "5 (Substantial)", minScore: "60", maxScore: "69" },
-      { grade: "4 (Adequate)", minScore: "50", maxScore: "59" },
-      { grade: "3 (Moderate)", minScore: "40", maxScore: "49" },
-      { grade: "2 (Elementary)", minScore: "30", maxScore: "39" },
-      { grade: "1 (Not achieved)", minScore: "0", maxScore: "29" },
-    ],
-  },
-  {
-    id: "custom",
-    label: "Custom",
-    region: "Any",
-    description: "Start from scratch with your own grading scale",
-    passmark: "40",
-    grades: [
-      { grade: "A", minScore: "70", maxScore: "100" },
-      { grade: "B", minScore: "60", maxScore: "69" },
-      { grade: "C", minScore: "50", maxScore: "59" },
-      { grade: "D", minScore: "40", maxScore: "49" },
-      { grade: "F", minScore: "0", maxScore: "39" },
-    ],
-  },
-];
-
 export const STORAGE_KEY = "schoolnify_school_setup";
+
+// ---------------------------------------------------------------------------
+// Country → Grade Level Structure mapping (ISO 3166-1 alpha-2 → structure ID)
+// Grouped by education system family. Unmapped countries get no auto-suggestion.
+// ---------------------------------------------------------------------------
+
+export const COUNTRY_TO_STRUCTURE: Record<string, string> = {
+  // Nigerian 6-3-3-4
+  NG: "ng_6334", SL: "ng_6334", GM: "ng_6334",
+  // Ghana JHS/SHS
+  GH: "gh_jhs_shs",
+  // Kenya 8-4-4 / CBC
+  KE: "ke_844", UG: "ke_844", TZ: "ke_844", RW: "ke_844",
+  // South Africa Grade R-12
+  ZA: "za_grade", NA: "za_grade", BW: "za_grade", ZW: "za_grade", SZ: "za_grade", LS: "za_grade", MW: "za_grade", MZ: "za_grade", ZM: "za_grade",
+  // US K-12
+  US: "us_k12", PR: "us_k12", GU: "us_k12", VI: "us_k12", PH: "us_k12", LR: "us_k12",
+  // Canada (similar to US)
+  CA: "us_k12",
+  // UK Year system
+  GB: "uk_year", IE: "uk_year",
+  // Australia / New Zealand (UK-derived)
+  AU: "uk_year", NZ: "uk_year",
+  // South & Southeast Asia (UK-derived)
+  IN: "uk_year", PK: "uk_year", BD: "uk_year", LK: "uk_year", NP: "uk_year", MM: "uk_year",
+  MY: "uk_year", SG: "uk_year", HK: "uk_year", BN: "uk_year",
+  // Middle East / GCC (UK-influenced international schools dominate)
+  AE: "uk_year", SA: "uk_year", QA: "uk_year", KW: "uk_year", OM: "uk_year", BH: "uk_year",
+  JO: "uk_year", LB: "uk_year", IQ: "uk_year", EG: "uk_year",
+  // Caribbean (UK-derived)
+  JM: "uk_year", TT: "uk_year", BB: "uk_year", GY: "uk_year", BS: "uk_year",
+  AG: "uk_year", DM: "uk_year", GD: "uk_year", KN: "uk_year", LC: "uk_year", VC: "uk_year", BZ: "uk_year",
+  // French system
+  FR: "fr_cycle",
+  // Francophone West Africa
+  SN: "fr_cycle", CI: "fr_cycle", ML: "fr_cycle", BF: "fr_cycle", NE: "fr_cycle",
+  GN: "fr_cycle", TG: "fr_cycle", BJ: "fr_cycle", MR: "fr_cycle",
+  // Francophone Central Africa
+  CM: "fr_cycle", CD: "fr_cycle", CG: "fr_cycle", GA: "fr_cycle", TD: "fr_cycle", CF: "fr_cycle",
+  // Francophone Indian Ocean & North Africa
+  MG: "fr_cycle", DJ: "fr_cycle", KM: "fr_cycle",
+  MA: "fr_cycle", DZ: "fr_cycle", TN: "fr_cycle",
+  // Francophone others
+  HT: "fr_cycle", VN: "fr_cycle",
+  // Horn of Africa (varied, default to Kenya-style)
+  ET: "ke_844", ER: "ke_844", SO: "ke_844",
+};
+
+// ---------------------------------------------------------------------------
+// Country → Calendar type mapping
+// ---------------------------------------------------------------------------
+
+export const COUNTRY_TO_CALENDAR: Record<string, string> = {
+  // Trimester / 3-term (most common globally)
+  NG: "trimester", GH: "trimester", KE: "trimester", UG: "trimester", TZ: "trimester", RW: "trimester",
+  SL: "trimester", GM: "trimester", LR: "trimester",
+  GB: "trimester", IE: "trimester",
+  IN: "trimester", PK: "trimester", BD: "trimester", LK: "trimester", NP: "trimester",
+  AE: "trimester", SA: "trimester", QA: "trimester", KW: "trimester", OM: "trimester", BH: "trimester",
+  JO: "trimester", LB: "trimester", EG: "trimester",
+  JM: "trimester", TT: "trimester", BB: "trimester", GY: "trimester",
+  MY: "trimester", SG: "trimester", HK: "trimester",
+  ET: "trimester", ER: "trimester", SO: "trimester",
+  // Quarter / 4-term
+  ZA: "quarter", NA: "quarter", BW: "quarter", ZW: "quarter", ZM: "quarter",
+  AU: "quarter", NZ: "quarter",
+  // Semester / 2-term
+  US: "semester", CA: "semester", PH: "semester",
+  // Francophone trimester
+  FR: "trimester",
+  SN: "trimester", CI: "trimester", ML: "trimester", BF: "trimester", NE: "trimester",
+  GN: "trimester", TG: "trimester", BJ: "trimester", MR: "trimester",
+  CM: "trimester", CD: "trimester", CG: "trimester", GA: "trimester", TD: "trimester", CF: "trimester",
+  MG: "trimester", MA: "trimester", DZ: "trimester", TN: "trimester",
+  HT: "trimester", VN: "trimester",
+};
 
 // ---------------------------------------------------------------------------
 // Schedule Presets
@@ -586,6 +401,131 @@ export const SCHEDULE_PRESETS: SchedulePreset[] = [
       { label: "Block 3", startTime: "11:45", endTime: "13:15", isBreak: false },
       { label: "Break", startTime: "13:15", endTime: "13:25", isBreak: true },
       { label: "Block 4", startTime: "13:25", endTime: "14:55", isBreak: false },
+    ],
+  },
+  {
+    id: "nursery_4_30",
+    label: "Nursery / Pre-primary (4 × 30 min)",
+    startTime: "08:00",
+    endTime: "11:30",
+    periodDuration: "30",
+    periods: [
+      { label: "Circle Time", startTime: "08:00", endTime: "08:30", isBreak: false },
+      { label: "Activity 1", startTime: "08:30", endTime: "09:00", isBreak: false },
+      { label: "Snack Break", startTime: "09:00", endTime: "09:30", isBreak: true },
+      { label: "Activity 2", startTime: "09:30", endTime: "10:00", isBreak: false },
+      { label: "Outdoor Play", startTime: "10:00", endTime: "10:30", isBreak: true },
+      { label: "Activity 3", startTime: "10:30", endTime: "11:00", isBreak: false },
+      { label: "Story / Review", startTime: "11:00", endTime: "11:30", isBreak: false },
+    ],
+  },
+  {
+    id: "us_traditional_7_50",
+    label: "US Traditional (7 × 50 min)",
+    startTime: "08:00",
+    endTime: "14:50",
+    periodDuration: "50",
+    periods: [
+      { label: "Period 1", startTime: "08:00", endTime: "08:50", isBreak: false },
+      { label: "Period 2", startTime: "08:55", endTime: "09:45", isBreak: false },
+      { label: "Period 3", startTime: "09:50", endTime: "10:40", isBreak: false },
+      { label: "Period 4", startTime: "10:45", endTime: "11:35", isBreak: false },
+      { label: "Lunch", startTime: "11:35", endTime: "12:10", isBreak: true },
+      { label: "Period 5", startTime: "12:10", endTime: "13:00", isBreak: false },
+      { label: "Period 6", startTime: "13:05", endTime: "13:55", isBreak: false },
+      { label: "Period 7", startTime: "14:00", endTime: "14:50", isBreak: false },
+    ],
+  },
+  {
+    id: "fr_split_day",
+    label: "French Split-Day (7 × 55 min)",
+    startTime: "08:00",
+    endTime: "16:30",
+    periodDuration: "55",
+    periods: [
+      { label: "Period 1", startTime: "08:00", endTime: "08:55", isBreak: false },
+      { label: "Period 2", startTime: "08:55", endTime: "09:50", isBreak: false },
+      { label: "Break", startTime: "09:50", endTime: "10:05", isBreak: true },
+      { label: "Period 3", startTime: "10:05", endTime: "11:00", isBreak: false },
+      { label: "Period 4", startTime: "11:00", endTime: "11:55", isBreak: false },
+      { label: "Lunch", startTime: "11:55", endTime: "13:30", isBreak: true },
+      { label: "Period 5", startTime: "13:30", endTime: "14:25", isBreak: false },
+      { label: "Period 6", startTime: "14:25", endTime: "15:20", isBreak: false },
+      { label: "Break", startTime: "15:20", endTime: "15:35", isBreak: true },
+      { label: "Period 7", startTime: "15:35", endTime: "16:30", isBreak: false },
+    ],
+  },
+  {
+    id: "me_early_7_45",
+    label: "Middle East / Early Start (7 × 45 min)",
+    startTime: "07:00",
+    endTime: "13:00",
+    periodDuration: "45",
+    periods: [
+      { label: "Period 1", startTime: "07:00", endTime: "07:45", isBreak: false },
+      { label: "Period 2", startTime: "07:45", endTime: "08:30", isBreak: false },
+      { label: "Break", startTime: "08:30", endTime: "08:45", isBreak: true },
+      { label: "Period 3", startTime: "08:45", endTime: "09:30", isBreak: false },
+      { label: "Period 4", startTime: "09:30", endTime: "10:15", isBreak: false },
+      { label: "Break", startTime: "10:15", endTime: "10:45", isBreak: true },
+      { label: "Period 5", startTime: "10:45", endTime: "11:30", isBreak: false },
+      { label: "Period 6", startTime: "11:30", endTime: "12:15", isBreak: false },
+      { label: "Period 7", startTime: "12:15", endTime: "13:00", isBreak: false },
+    ],
+  },
+  {
+    id: "boarding_extended",
+    label: "Boarding School (8 periods + Prep)",
+    startTime: "08:00",
+    endTime: "21:00",
+    periodDuration: "40",
+    periods: [
+      { label: "Period 1", startTime: "08:00", endTime: "08:40", isBreak: false },
+      { label: "Period 2", startTime: "08:40", endTime: "09:20", isBreak: false },
+      { label: "Period 3", startTime: "09:20", endTime: "10:00", isBreak: false },
+      { label: "Short Break", startTime: "10:00", endTime: "10:20", isBreak: true },
+      { label: "Period 4", startTime: "10:20", endTime: "11:00", isBreak: false },
+      { label: "Period 5", startTime: "11:00", endTime: "11:40", isBreak: false },
+      { label: "Period 6", startTime: "11:40", endTime: "12:20", isBreak: false },
+      { label: "Lunch", startTime: "12:20", endTime: "13:20", isBreak: true },
+      { label: "Period 7", startTime: "13:20", endTime: "14:00", isBreak: false },
+      { label: "Period 8", startTime: "14:00", endTime: "14:40", isBreak: false },
+      { label: "Sports / Activities", startTime: "14:40", endTime: "16:30", isBreak: true },
+      { label: "Dinner", startTime: "16:30", endTime: "17:30", isBreak: true },
+      { label: "Evening Prep 1", startTime: "19:00", endTime: "20:00", isBreak: false },
+      { label: "Evening Prep 2", startTime: "20:00", endTime: "21:00", isBreak: false },
+    ],
+  },
+  {
+    id: "de_halfday_6_45",
+    label: "German Half-Day (6 × 45 min)",
+    startTime: "07:45",
+    endTime: "12:50",
+    periodDuration: "45",
+    periods: [
+      { label: "Stunde 1", startTime: "07:45", endTime: "08:30", isBreak: false },
+      { label: "Stunde 2", startTime: "08:30", endTime: "09:15", isBreak: false },
+      { label: "Gro\u00dfe Pause", startTime: "09:15", endTime: "09:35", isBreak: true },
+      { label: "Stunde 3", startTime: "09:35", endTime: "10:20", isBreak: false },
+      { label: "Stunde 4", startTime: "10:20", endTime: "11:05", isBreak: false },
+      { label: "Pause", startTime: "11:05", endTime: "11:20", isBreak: true },
+      { label: "Stunde 5", startTime: "11:20", endTime: "12:05", isBreak: false },
+      { label: "Stunde 6", startTime: "12:05", endTime: "12:50", isBreak: false },
+    ],
+  },
+  {
+    id: "ab_block_85",
+    label: "A/B Rotating Block (4 × 85 min)",
+    startTime: "08:00",
+    endTime: "14:35",
+    periodDuration: "85",
+    periods: [
+      { label: "Block A1 / B1", startTime: "08:00", endTime: "09:25", isBreak: false },
+      { label: "Block A2 / B2", startTime: "09:30", endTime: "10:55", isBreak: false },
+      { label: "Lunch", startTime: "10:55", endTime: "11:35", isBreak: true },
+      { label: "Block A3 / B3", startTime: "11:35", endTime: "13:00", isBreak: false },
+      { label: "Break", startTime: "13:00", endTime: "13:10", isBreak: true },
+      { label: "Block A4 / B4", startTime: "13:10", endTime: "14:35", isBreak: false },
     ],
   },
 ];
