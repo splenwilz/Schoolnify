@@ -6,9 +6,12 @@ import { Download, Mail, UserCog, X } from "lucide-react";
 interface BulkActionsBarProps {
   count: number;
   onClear: () => void;
+  onExport?: () => void;
+  onMessage?: () => void;
+  onStatusChange?: () => void;
 }
 
-export function BulkActionsBar({ count, onClear }: BulkActionsBarProps) {
+export function BulkActionsBar({ count, onClear, onExport, onMessage, onStatusChange }: BulkActionsBarProps) {
   return (
     <AnimatePresence>
       {count > 0 && (
@@ -21,13 +24,13 @@ export function BulkActionsBar({ count, onClear }: BulkActionsBarProps) {
         >
           <span className="text-sm font-medium">{count} selected</span>
           <div className="w-px h-5 bg-[var(--background)]/20" />
-          <button className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
+          <button onClick={onExport} className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
             <Download className="w-4 h-4" /> Export
           </button>
-          <button className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
+          <button onClick={onMessage} className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
             <Mail className="w-4 h-4" /> Message
           </button>
-          <button className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
+          <button onClick={onStatusChange} className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
             <UserCog className="w-4 h-4" /> Status
           </button>
           <button

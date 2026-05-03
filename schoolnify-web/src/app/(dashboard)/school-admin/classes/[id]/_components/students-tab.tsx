@@ -72,7 +72,7 @@ export function StudentsTab() {
                 </td>
                 <td className="px-4 py-4 text-right">
                   <span className="text-[13px] font-semibold tabular-nums text-[var(--foreground)]">
-                    {student.gpa.toFixed(2)}
+                    {student.gpa === null ? "—" : student.gpa.toFixed(2)}
                   </span>
                 </td>
                 <td className="px-4 py-4 text-right">
@@ -81,19 +81,19 @@ export function StudentsTab() {
                       <motion.div
                         className={cn(
                           "h-full rounded-full",
-                          student.attendanceRate >= 95
+                          (student.attendanceRate ?? 0) >= 95
                             ? "bg-[#10B981]"
-                            : student.attendanceRate >= 90
+                            : (student.attendanceRate ?? 0) >= 90
                               ? "bg-[#F59E0B]"
                               : "bg-[#EF4444]"
                         )}
                         initial={{ width: 0 }}
-                        animate={{ width: `${student.attendanceRate}%` }}
+                        animate={{ width: `${student.attendanceRate ?? 0}%` }}
                         transition={{ duration: 0.5, delay: index * 0.03 }}
                       />
                     </div>
                     <span className="text-[13px] tabular-nums text-[var(--muted)] w-11 text-right">
-                      {student.attendanceRate}%
+                      {student.attendanceRate === null ? "—" : `${student.attendanceRate}%`}
                     </span>
                   </div>
                 </td>

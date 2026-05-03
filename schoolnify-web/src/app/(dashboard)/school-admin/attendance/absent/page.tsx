@@ -60,7 +60,7 @@ function generateAbsentStudents(): AbsentStudent[] {
 
     // Try to match real students first
     const matchedStudents = students.filter(
-      (s) => s.grade === gradePart && s.status === "active"
+      (s) => s.gradeLevel === gradePart && s.status === "active"
     );
 
     for (let i = 0; i < cls.absent; i++) {
@@ -72,8 +72,8 @@ function generateAbsentStudents(): AbsentStudent[] {
           initials: `${s.firstName[0]}${s.lastName[0]}`,
           className: cls.className,
           teacher: cls.teacher,
-          avatar: s.avatar,
-          parentName: s.parentName,
+          avatar: s.avatar ?? null,
+          parentName: s.guardians[0] ? `${s.guardians[0].firstName} ${s.guardians[0].lastName}` : "N/A",
         });
       } else {
         // Generate a mock absent student

@@ -1,30 +1,46 @@
 "use client";
 
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { students } from "@/lib/demo-data";
-
-const feesPaid = students.filter((s) => s.feeStatus === "paid").length;
-const feesPending = students.filter((s) => s.feeStatus === "pending").length;
-const feesOverdue = students.filter((s) => s.feeStatus === "overdue").length;
-const maleCount = students.filter((s) => s.gender === "Male").length;
-const femaleCount = students.filter((s) => s.gender === "Female").length;
-const avgAge =
-  students.reduce((sum, s) => {
-    const birthYear = new Date(s.dateOfBirth).getFullYear();
-    return sum + (2026 - birthYear);
-  }, 0) / students.length;
-
-const metrics = [
-  { label: "Fees Paid", value: feesPaid.toString(), sub: `${((feesPaid / students.length) * 100).toFixed(0)}% of total`, color: "#10B981" },
-  { label: "Fees Pending", value: feesPending.toString(), sub: "Awaiting payment", color: "#F59E0B" },
-  { label: "Fees Overdue", value: feesOverdue.toString(), sub: "Requires follow-up", color: "#EF4444" },
-  { label: "Male Students", value: maleCount.toString(), sub: `${((maleCount / students.length) * 100).toFixed(0)}% of total`, color: "#3B82F6" },
-  { label: "Female Students", value: femaleCount.toString(), sub: `${((femaleCount / students.length) * 100).toFixed(0)}% of total`, color: "#A855F7" },
-  { label: "Avg Age", value: avgAge.toFixed(1), sub: "Years old", color: "#0891B2" },
-];
+import { useStudents } from "@/hooks/use-students";
 
 export function MetricsGrid() {
+  const { data } = useStudents({ page_size: 1000 });
+  const students = useMemo(() => data?.students ?? [], [data?.students]);
+
+  const metrics = useMemo(() => {
+    if (students.length === 0) {
+      return [
+        { label: "Fees Paid", value: "—", sub: "no data yet", color: "#10B981" },
+        { label: "Fees Pending", value: "—", sub: "no data yet", color: "#F59E0B" },
+        { label: "Fees Overdue", value: "—", sub: "no data yet", color: "#EF4444" },
+        { label: "Male Students", value: "—", sub: "no data yet", color: "#3B82F6" },
+        { label: "Female Students", value: "—", sub: "no data yet", color: "#A855F7" },
+        { label: "Avg Age", value: "—", sub: "no data yet", color: "#0891B2" },
+      ];
+    }
+    const feesPaid = students.filter((s) => s.feeStatus === "paid").length;
+    const feesPending = students.filter((s) => s.feeStatus === "pending").length;
+    const feesOverdue = students.filter((s) => s.feeStatus === "overdue").length;
+    const maleCount = students.filter((s) => s.gender === "Male").length;
+    const femaleCount = students.filter((s) => s.gender === "Female").length;
+    const thisYear = new Date().getFullYear();
+    const avgAge = students.reduce((sum, s) => {
+      const birthYear = new Date(s.dateOfBirth).getFullYear();
+      return sum + (thisYear - birthYear);
+    }, 0) / students.length;
+    const total = students.length;
+    return [
+      { label: "Fees Paid", value: feesPaid.toString(), sub: `${((feesPaid / total) * 100).toFixed(0)}% of total`, color: "#10B981" },
+      { label: "Fees Pending", value: feesPending.toString(), sub: "Awaiting payment", color: "#F59E0B" },
+      { label: "Fees Overdue", value: feesOverdue.toString(), sub: "Requires follow-up", color: "#EF4444" },
+      { label: "Male Students", value: maleCount.toString(), sub: `${((maleCount / total) * 100).toFixed(0)}% of total`, color: "#3B82F6" },
+      { label: "Female Students", value: femaleCount.toString(), sub: `${((femaleCount / total) * 100).toFixed(0)}% of total`, color: "#A855F7" },
+      { label: "Avg Age", value: avgAge.toFixed(1), sub: "Years old", color: "#0891B2" },
+    ];
+  }, [students]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}

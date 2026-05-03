@@ -57,7 +57,7 @@ export default function CollectFeePage() {
         (s) =>
           `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
           s.id.toLowerCase().includes(q) ||
-          s.grade.toLowerCase().includes(q)
+          s.gradeLevel.toLowerCase().includes(q)
       )
       .slice(0, 6);
   }, [searchQuery]);
@@ -151,7 +151,7 @@ export default function CollectFeePage() {
                       {selectedStudent.firstName} {selectedStudent.lastName}
                     </p>
                     <p className="text-xs text-[var(--muted)]">
-                      {fmtGrade(selectedStudent.grade)} &middot; {selectedStudent.id}
+                      {fmtGrade(selectedStudent.gradeLevel)} &middot; {selectedStudent.id}
                     </p>
                   </div>
                 </div>
@@ -201,7 +201,7 @@ export default function CollectFeePage() {
                               {s.firstName} {s.lastName}
                             </p>
                             <p className="text-xs text-[var(--muted)]">
-                              {fmtGrade(s.grade)} &middot; {s.id}
+                              {fmtGrade(s.gradeLevel)} &middot; {s.id}
                             </p>
                           </div>
                         </button>

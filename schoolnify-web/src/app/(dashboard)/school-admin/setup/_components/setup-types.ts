@@ -72,6 +72,7 @@ export interface SetupData {
   motto: string;
   foundedYear: string;
   accreditationNumber: string;
+  admissionNumberPrefix: string;
   // Branding & Appearance
   logoUrl: string;
   primaryColor: string;
@@ -193,6 +194,7 @@ export const DEFAULT_DATA: SetupData = {
   motto: "",
   foundedYear: "",
   accreditationNumber: "",
+  admissionNumberPrefix: "",
   logoUrl: "",
   primaryColor: "#0891B2",
   secondaryColor: "#10B981",
