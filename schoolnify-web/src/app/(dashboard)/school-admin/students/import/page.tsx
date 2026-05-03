@@ -55,6 +55,14 @@ export default function StudentImportPage() {
   const fields = getAllFields(country);
 
   const handleParsed = (csv: ParsedCSV) => {
+    // A new file invalidates everything downstream: prior validation results,
+    // server response counts, mutation state. Reset before stepping forward.
+    setValidationResult(null);
+    setImportedCount(0);
+    setSkippedCount(0);
+    setServerErrors([]);
+    importMutation.reset();
+
     setParsedCSV(csv);
     const autoMap: Record<string, string> = {};
     for (const header of csv.headers) {

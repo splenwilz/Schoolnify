@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { useChangeStudentStatus } from "@/hooks/use-students";
 import type { Student } from "@/types/student";
 import type { ApiStudent } from "@/types/student-api";
+import { todayLocalISO } from "../_utils/dates";
 import { Modal } from "./modal";
 
 interface StatusChangeDialogProps {
@@ -28,14 +29,14 @@ export function StatusChangeDialog({ open, onClose, student }: StatusChangeDialo
   const mutation = useChangeStudentStatus();
   const [status, setStatus] = useState<ApiStudent["status"]>(student.status);
   const [reason, setReason] = useState("");
-  const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().slice(0, 10));
+  const [effectiveDate, setEffectiveDate] = useState(todayLocalISO());
 
   // Reset form whenever the dialog opens or the student changes.
   useEffect(() => {
     if (!open) return;
     setStatus(student.status);
     setReason("");
-    setEffectiveDate(new Date().toISOString().slice(0, 10));
+    setEffectiveDate(todayLocalISO());
     mutation.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, student.id, student.status]);

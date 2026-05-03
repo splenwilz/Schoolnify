@@ -3,22 +3,11 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, CheckCircle2, Users, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Users, AlertTriangle, Loader2, RefreshCcw, WifiOff } from "lucide-react";
 import { useStudents, usePromoteStudents } from "@/hooks/use-students";
+import { useSchoolSetup } from "@/hooks/use-school-setup";
 import { Avatar } from "../_components/avatar";
 import { cn } from "@/lib/utils";
-
-const GRADE_ORDER = [
-  "Nursery 1", "Nursery 2", "Nursery 3",
-  "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6",
-  "JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3",
-];
-
-function nextGrade(current: string): string | null {
-  const idx = GRADE_ORDER.indexOf(current);
-  if (idx === -1 || idx === GRADE_ORDER.length - 1) return null;
-  return GRADE_ORDER[idx + 1];
-}
 
 type Decision = "promote" | "retain" | "graduate";
 
@@ -27,18 +16,30 @@ export default function PromotionPage() {
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
   const [applied, setApplied] = useState(false);
 
-  const { data, isLoading } = useStudents({ page_size: 1000 });
+  const { data, isLoading, error, refetch } = useStudents({ page_size: 1000 });
+  const { data: setupData } = useSchoolSetup();
   const promoteMutation = usePromoteStudents();
   const students = useMemo(() => data?.students ?? [], [data?.students]);
+
+  // Source the grade progression from school setup so schools with custom
+  // levels work end-to-end. The configured order is canonical for nextGrade().
+  const configuredGrades = useMemo(() => setupData?.gradeLevels ?? [], [setupData?.gradeLevels]);
+  const academicYear = setupData?.currentAcademicYear?.trim() || "";
+
+  const nextGrade = (current: string): string | null => {
+    const idx = configuredGrades.indexOf(current);
+    if (idx === -1 || idx === configuredGrades.length - 1) return null;
+    return configuredGrades[idx + 1];
+  };
 
   const grades = useMemo(() => {
     const unique = [...new Set(students.filter((s) => s.status === "active").map((s) => s.gradeLevel))];
     return unique.sort((a, b) => {
-      const ai = GRADE_ORDER.indexOf(a);
-      const bi = GRADE_ORDER.indexOf(b);
+      const ai = configuredGrades.indexOf(a);
+      const bi = configuredGrades.indexOf(b);
       return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
     });
-  }, [students]);
+  }, [students, configuredGrades]);
 
   const classStudents = useMemo(() => {
     if (!selectedGrade) return [];
@@ -46,7 +47,10 @@ export default function PromotionPage() {
   }, [selectedGrade, students]);
 
   const target = selectedGrade ? nextGrade(selectedGrade) : null;
-  const isLastGrade = selectedGrade === GRADE_ORDER[GRADE_ORDER.length - 1];
+  const isLastGrade =
+    !!selectedGrade &&
+    configuredGrades.length > 0 &&
+    selectedGrade === configuredGrades[configuredGrades.length - 1];
 
   // Initialize decisions when grade changes
   const getDecision = (id: string): Decision => {
@@ -64,21 +68,27 @@ export default function PromotionPage() {
 
   const handleApply = () => {
     if (!selectedGrade || classStudents.length === 0 || promoteMutation.isPending) return;
+    if (!academicYear) {
+      // Defensive: setup must declare the current academic year before promotion.
+      return;
+    }
     // Snapshot decisions + class list at click time so the payload reflects the
     // user's current intent, not whatever state lands during the mutation.
     const decisionSnapshot = { ...decisions };
     const classSnapshot = classStudents.slice();
     const isLastSnapshot = isLastGrade;
     const targetSnapshot = target;
-    const academicYear = new Date().getFullYear() + "-" + (new Date().getFullYear() + 1);
+
     const payload = {
       academic_year: academicYear,
       decisions: classSnapshot.map((s) => {
         const d: Decision = decisionSnapshot[s.id] ?? (isLastSnapshot ? "graduate" : "promote");
+        // Promote without a successor grade is invalid -- coerce to "retain".
+        const action: Decision = d === "promote" && !targetSnapshot ? "retain" : d;
         return {
           student_id: s.id,
-          action: d,
-          to_grade: d === "promote" ? (targetSnapshot ?? undefined) : undefined,
+          action,
+          to_grade: action === "promote" ? (targetSnapshot ?? undefined) : undefined,
         };
       }),
     };
@@ -92,6 +102,26 @@ export default function PromotionPage() {
       <div className="max-w-[860px] mx-auto py-24 flex flex-col items-center justify-center gap-3">
         <Loader2 className="w-6 h-6 text-[#0891B2] animate-spin" />
         <p className="text-[13px] text-[var(--muted)]">Loading students...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-[860px] mx-auto py-24 flex flex-col items-center justify-center gap-3 text-center">
+        <div className="w-12 h-12 rounded-full bg-[var(--background-secondary)] flex items-center justify-center">
+          <WifiOff className="w-6 h-6 text-[var(--muted)]" />
+        </div>
+        <p className="text-[15px] font-medium text-[var(--foreground)]">Couldn&apos;t load students</p>
+        <p className="text-[13px] text-[var(--muted)] max-w-md">{(error as Error).message}</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0891B2] text-white text-sm font-medium hover:bg-[#0E7490] transition-colors"
+        >
+          <RefreshCcw className="w-4 h-4" />
+          Retry
+        </button>
       </div>
     );
   }
@@ -128,6 +158,18 @@ export default function PromotionPage() {
           <p className="text-[14px] text-[var(--muted)]">Move students to the next class for the new academic session</p>
         </div>
       </div>
+
+      {!academicYear && (
+        <div className="mb-6 flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[13px] text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">Academic year not configured</p>
+            <p className="text-[12px] mt-0.5">
+              Set the current academic year in school setup before running promotions.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Grade selector */}
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 mb-6">
@@ -276,7 +318,8 @@ export default function PromotionPage() {
             </div>
             <button
               onClick={handleApply}
-              disabled={promoteMutation.isPending}
+              disabled={promoteMutation.isPending || !academicYear}
+              title={!academicYear ? "Set the current academic year in school setup" : undefined}
               className="px-5 py-2.5 text-[14px] font-medium rounded-lg bg-[#0891B2] text-white hover:bg-[#0E7490] disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2"
             >
               {promoteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}

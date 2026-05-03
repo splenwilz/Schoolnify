@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { useChangeStudentClass } from "@/hooks/use-students";
 import { useSchoolSetup } from "@/hooks/use-school-setup";
 import type { Student } from "@/types/student";
+import { todayLocalISO } from "../_utils/dates";
 import { Modal } from "./modal";
 
 interface ClassChangeDialogProps {
@@ -22,14 +23,14 @@ export function ClassChangeDialog({ open, onClose, student }: ClassChangeDialogP
 
   const [gradeLevel, setGradeLevel] = useState(student.gradeLevel);
   const [section, setSection] = useState(student.section ?? "");
-  const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().slice(0, 10));
+  const [effectiveDate, setEffectiveDate] = useState(todayLocalISO());
   const [reason, setReason] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setGradeLevel(student.gradeLevel);
     setSection(student.section ?? "");
-    setEffectiveDate(new Date().toISOString().slice(0, 10));
+    setEffectiveDate(todayLocalISO());
     setReason("");
     mutation.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps

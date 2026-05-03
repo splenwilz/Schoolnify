@@ -32,7 +32,6 @@ export function EnrollFromAdmissions() {
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
   const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set());
   const [classAssignment, setClassAssignment] = useState("");
-  const [feeStatus, setFeeStatus] = useState("pending");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [gender, setGender] = useState<"Male" | "Female" | "">("");
   const [enrollError, setEnrollError] = useState("");
@@ -88,7 +87,6 @@ export function EnrollFromAdmissions() {
         setEnrolledIds((prev) => new Set([...prev, app.id]));
         setEnrollingId(null);
         setClassAssignment("");
-        setFeeStatus("pending");
         setDateOfBirth("");
         setGender("");
       },
@@ -209,17 +207,6 @@ export function EnrollFromAdmissions() {
                       <option value="">Select...</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[12px] font-medium text-[var(--muted)] mb-1">Fee Status</label>
-                    <select
-                      value={feeStatus}
-                      onChange={(e) => setFeeStatus(e.target.value)}
-                      className="w-full px-3 py-2 text-[14px] bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[#0891B2]"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="paid">Paid</option>
                     </select>
                   </div>
                 </div>

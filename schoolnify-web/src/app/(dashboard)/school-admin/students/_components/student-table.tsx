@@ -12,6 +12,42 @@ import { primaryGuardian } from "@/types/student";
 type SortField = "name" | "grade" | "admNo" | "gender" | null;
 type SortDir = "asc" | "desc";
 
+const STATUS_LABEL: Record<Student["status"], string> = {
+  active: "Active",
+  inactive: "Inactive",
+  suspended: "Suspended",
+  graduated: "Graduated",
+  transferred: "Transferred",
+  withdrawn: "Withdrawn",
+};
+
+const STATUS_DOT: Record<Student["status"], string> = {
+  active: "bg-[#10B981]",
+  inactive: "bg-[var(--border)]",
+  suspended: "bg-amber-500",
+  graduated: "bg-[#8B5CF6]",
+  transferred: "bg-blue-500",
+  withdrawn: "bg-red-500",
+};
+
+function FeeBadge({ feeStatus }: { feeStatus: Student["feeStatus"] }) {
+  const config: Record<Student["feeStatus"], { label: string; className: string }> = {
+    paid: { label: "paid", className: "bg-[#10B981]/10 text-[#10B981]" },
+    pending: { label: "pending", className: "bg-amber-500/10 text-amber-600" },
+    overdue: { label: "overdue", className: "bg-red-500/10 text-red-500" },
+    unknown: { label: "—", className: "bg-[var(--background-secondary)] text-[var(--muted)]" },
+  };
+  const c = config[feeStatus];
+  return (
+    <span
+      className={cn("text-[11px] font-semibold px-2 py-0.5 rounded", c.className)}
+      title={feeStatus === "unknown" ? "No fee data yet" : undefined}
+    >
+      {c.label}
+    </span>
+  );
+}
+
 interface StudentTableProps {
   students: Student[];
   selectedStudents: string[];
@@ -121,19 +157,12 @@ export function StudentTable({
                     <td className="px-4 py-3 text-[13px] text-[var(--muted)]">{student.gender}</td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--muted)]">
-                        <span className={cn("w-1.5 h-1.5 rounded-full", student.status === "active" ? "bg-[#10B981]" : "bg-[var(--border)]")} />
-                        {student.status === "active" ? "Active" : "Inactive"}
+                        <span className={cn("w-1.5 h-1.5 rounded-full", STATUS_DOT[student.status])} />
+                        {STATUS_LABEL[student.status]}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={cn(
-                        "text-[11px] font-semibold px-2 py-0.5 rounded",
-                        student.feeStatus === "paid" ? "bg-[#10B981]/10 text-[#10B981]"
-                          : student.feeStatus === "pending" ? "bg-amber-500/10 text-amber-600"
-                            : "bg-red-500/10 text-red-500"
-                      )}>
-                        {student.feeStatus}
-                      </span>
+                      <FeeBadge feeStatus={student.feeStatus} />
                     </td>
                   </motion.tr>
                 );

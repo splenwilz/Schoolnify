@@ -69,7 +69,6 @@ export function StepMapping({ headers, sampleRows, fields, mapping, onMappingCha
         {headers.map((header) => {
           const fieldKey = mapping[header] ?? "_ignore";
           const status = getStatus(fieldKey, fields);
-          const field = fields.find((f) => f.key === fieldKey);
           const samples = sampleRows.map((r) => r[header] ?? "").filter(Boolean).slice(0, 3);
 
           return (

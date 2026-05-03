@@ -249,9 +249,19 @@ export function NewStudentForm({ initialStudent }: NewStudentFormProps = {}) {
     });
 
     if (isEdit && initialStudent) {
-      // Strip admission_number on update (server doesn't accept it)
-      const { admission_number: _omit, ...updateData } = payload;
-      void _omit;
+      // The PATCH endpoint treats explicit `null` as "clear the field". Since
+      // this form doesn't model postal_code or avatar_url, sending them at all
+      // would wipe values the user can't see. Strip them along with admission_number
+      // (which the server rejects on update).
+      const {
+        admission_number: _admissionNumber,
+        postal_code: _postalCode,
+        avatar_url: _avatarUrl,
+        ...updateData
+      } = payload;
+      void _admissionNumber;
+      void _postalCode;
+      void _avatarUrl;
       updateMutation.mutate(
         { id: initialStudent.id, data: updateData },
         {

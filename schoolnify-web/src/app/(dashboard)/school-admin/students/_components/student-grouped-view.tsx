@@ -5,13 +5,30 @@ import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Student } from "@/types/student";
-import { primaryGuardian } from "@/types/student";
 import { Avatar } from "./avatar";
 import { cn } from "@/lib/utils";
 
 interface StudentGroupedViewProps {
   students: Student[];
 }
+
+const STATUS_LABEL: Record<Student["status"], string> = {
+  active: "Active",
+  inactive: "Inactive",
+  suspended: "Suspended",
+  graduated: "Graduated",
+  transferred: "Transferred",
+  withdrawn: "Withdrawn",
+};
+
+const STATUS_DOT: Record<Student["status"], string> = {
+  active: "bg-[#10B981]",
+  inactive: "bg-[var(--border)]",
+  suspended: "bg-amber-500",
+  graduated: "bg-[#8B5CF6]",
+  transferred: "bg-blue-500",
+  withdrawn: "bg-red-500",
+};
 
 // Grade level sort order for Nigerian 6-3-3-4
 const GRADE_ORDER = [
@@ -62,6 +79,7 @@ function GradeGroup({ grade, students }: { grade: string; students: Student[] })
     paid: students.filter((s) => s.feeStatus === "paid").length,
     pending: students.filter((s) => s.feeStatus === "pending").length,
     overdue: students.filter((s) => s.feeStatus === "overdue").length,
+    unknown: students.filter((s) => s.feeStatus === "unknown").length,
   };
 
   return (
@@ -81,6 +99,7 @@ function GradeGroup({ grade, students }: { grade: string; students: Student[] })
           {feeStats.paid > 0 && <span className="px-1.5 py-0.5 rounded bg-[#10B981]/10 text-[#10B981] font-medium">{feeStats.paid} paid</span>}
           {feeStats.pending > 0 && <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">{feeStats.pending} pending</span>}
           {feeStats.overdue > 0 && <span className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-medium">{feeStats.overdue} overdue</span>}
+          {feeStats.unknown > 0 && <span className="px-1.5 py-0.5 rounded bg-[var(--background-secondary)] text-[var(--muted)] font-medium">{feeStats.unknown} no fee data</span>}
         </div>
       </button>
 
@@ -96,7 +115,6 @@ function GradeGroup({ grade, students }: { grade: string; students: Student[] })
           >
             <div className="border-t border-[var(--border)]">
               {students.map((student) => {
-                const guardian = primaryGuardian(student);
                 return (
                   <Link
                     key={student.id}
@@ -123,14 +141,12 @@ function GradeGroup({ grade, students }: { grade: string; students: Student[] })
                       "text-[11px] font-medium px-2 py-0.5 rounded",
                       student.feeStatus === "paid" ? "bg-[#10B981]/10 text-[#10B981]"
                         : student.feeStatus === "pending" ? "bg-amber-500/10 text-amber-600"
-                          : "bg-red-500/10 text-red-500"
-                    )}>
-                      {student.feeStatus}
+                          : student.feeStatus === "overdue" ? "bg-red-500/10 text-red-500"
+                            : "bg-[var(--background-secondary)] text-[var(--muted)]"
+                    )} title={student.feeStatus === "unknown" ? "No fee data yet" : undefined}>
+                      {student.feeStatus === "unknown" ? "—" : student.feeStatus}
                     </span>
-                    <span className={cn(
-                      "w-2 h-2 rounded-full shrink-0",
-                      student.status === "active" ? "bg-[#10B981]" : "bg-[var(--muted)]"
-                    )} title={student.status} />
+                    <span className={cn("w-2 h-2 rounded-full shrink-0", STATUS_DOT[student.status])} title={STATUS_LABEL[student.status]} />
                   </Link>
                 );
               })}

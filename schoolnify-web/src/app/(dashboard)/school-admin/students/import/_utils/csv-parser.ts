@@ -60,7 +60,9 @@ function parseExcelFile(file: File): Promise<ParsedCSV> {
           return;
         }
         const sheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+        // raw: false converts Excel-formatted dates (stored as serial numbers
+        // like 45000) into formatted strings, matching CSV semantics.
+        const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: false });
 
         if (jsonData.length === 0) {
           resolve({ headers: [], rows: [], rowCount: 0, errors: ["The sheet appears to be empty"] });

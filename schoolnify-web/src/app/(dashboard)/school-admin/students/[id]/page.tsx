@@ -81,24 +81,24 @@ export default function StudentDetailPage({
         <div className="lg:col-span-1 rounded-2xl bg-[var(--card)] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex items-center justify-center gap-6">
           <StatRing
             label="GPA"
-            value={student.gpa ?? 0}
+            value={student.gpa}
             maxValue={4.0}
             displayValue={student.gpa === null ? "—" : student.gpa.toFixed(1)}
             color="#0891B2"
           />
           <StatRing
             label="Attendance"
-            value={student.attendanceRate ?? 0}
+            value={student.attendanceRate}
             maxValue={100}
             displayValue={student.attendanceRate === null ? "—" : `${student.attendanceRate}%`}
             color="#10B981"
           />
-          <FeeStatusRing feeStatus={student.feeStatus === "unknown" ? "pending" : student.feeStatus} />
+          <FeeStatusRing feeStatus={student.feeStatus} />
         </div>
 
         {/* Performance Chart */}
         <div className="lg:col-span-2">
-          <PerformanceChart gpa={student.gpa ?? 0} />
+          <PerformanceChart gpa={student.gpa} />
         </div>
       </div>
 

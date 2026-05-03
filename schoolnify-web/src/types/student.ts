@@ -23,7 +23,7 @@ export interface Student {
   lastName: string;
   middleName?: string;
   dateOfBirth: string;
-  gender: "Male" | "Female" | "Other";
+  gender: "Male" | "Female";
   avatar?: string | null;
 
   // Academic

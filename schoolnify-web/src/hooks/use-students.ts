@@ -19,8 +19,13 @@ import type { Student, Guardian } from "@/types/student";
 // Query keys
 // ---------------------------------------------------------------------------
 
+type DetailInclude = "recent_payments" | "recent_attendance";
+
 export const STUDENTS_LIST_KEY = (filters: StudentListFilters) => ["students", "list", filters] as const;
-export const STUDENT_DETAIL_KEY = (id: string) => ["students", "detail", id] as const;
+export const STUDENT_DETAIL_KEY = (id: string, include: DetailInclude[] = []) =>
+  ["students", "detail", id, ...[...include].sort()] as const;
+/** Prefix used to invalidate every detail-include variant for a given student. */
+const studentDetailPrefix = (id: string) => ["students", "detail", id] as const;
 
 // ---------------------------------------------------------------------------
 // Mappers: API (snake_case) <-> frontend (camelCase)
@@ -60,7 +65,6 @@ const GENDER_API_TO_FE: Record<"male" | "female", Student["gender"]> = {
 const GENDER_FE_TO_API: Record<Student["gender"], "male" | "female"> = {
   Male: "male",
   Female: "female",
-  Other: "male", // backend only accepts male/female; coerce
 };
 
 const BOARDING_API_TO_FE: Record<string, Student["boardingStatus"]> = {
@@ -169,13 +173,25 @@ export function useStudents(filters: StudentListFilters = {}) {
   });
 }
 
-/** Single student detail. */
-export function useStudent(id: string | undefined, include?: ("recent_payments" | "recent_attendance")[]) {
+/**
+ * Single student detail.
+ *
+ * Returns the mapped Student. The cache key includes the `include` set so
+ * different requests don't clobber each other; the raw includes (recent_payments,
+ * recent_attendance) live alongside the mapped student in `data.includes`.
+ */
+export function useStudent(id: string | undefined, include: DetailInclude[] = []) {
   return useQuery({
-    queryKey: STUDENT_DETAIL_KEY(id ?? ""),
+    queryKey: STUDENT_DETAIL_KEY(id ?? "", include),
     queryFn: () => studentsApi.get(id!, include),
     enabled: !!id,
-    select: apiToStudent,
+    select: (api) => ({
+      ...apiToStudent(api),
+      includes: {
+        recentPayments: api.recent_payments,
+        recentAttendance: api.recent_attendance,
+      },
+    }),
   });
 }
 
@@ -194,7 +210,7 @@ export function useUpdateStudent() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateStudentRequest }) => studentsApi.update(id, data),
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: STUDENT_DETAIL_KEY(vars.id) });
+      qc.invalidateQueries({ queryKey: studentDetailPrefix(vars.id) });
       qc.invalidateQueries({ queryKey: ["students", "list"] });
     },
   });
@@ -205,7 +221,7 @@ export function useDeleteStudent() {
   return useMutation({
     mutationFn: (id: string) => studentsApi.delete(id),
     onSuccess: (_, id) => {
-      qc.invalidateQueries({ queryKey: STUDENT_DETAIL_KEY(id) });
+      qc.invalidateQueries({ queryKey: studentDetailPrefix(id) });
       qc.invalidateQueries({ queryKey: ["students", "list"] });
     },
   });
@@ -216,7 +232,7 @@ export function useChangeStudentStatus() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: ChangeStatusRequest }) => studentsApi.changeStatus(id, data),
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: STUDENT_DETAIL_KEY(vars.id) });
+      qc.invalidateQueries({ queryKey: studentDetailPrefix(vars.id) });
       qc.invalidateQueries({ queryKey: ["students", "list"] });
     },
   });
@@ -227,7 +243,7 @@ export function useChangeStudentClass() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: ChangeClassRequest }) => studentsApi.changeClass(id, data),
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: STUDENT_DETAIL_KEY(vars.id) });
+      qc.invalidateQueries({ queryKey: studentDetailPrefix(vars.id) });
       qc.invalidateQueries({ queryKey: ["students", "list"] });
     },
   });

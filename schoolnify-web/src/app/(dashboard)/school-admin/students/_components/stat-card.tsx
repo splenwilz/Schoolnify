@@ -16,11 +16,13 @@ interface StatCardProps {
 }
 
 export function StatCard({
+  icon: Icon,
   label,
   value,
   change,
   changeUp,
   subtitle,
+  color,
   index,
 }: StatCardProps) {
   return (
@@ -30,8 +32,15 @@ export function StatCard({
       transition={{ duration: 0.3, delay: index * 0.06 }}
       className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]"
     >
-      <div className="flex items-center gap-2 mb-1">
+      <div className="flex items-center justify-between mb-2">
         <span className="text-sm text-[var(--muted)]">{label}</span>
+        <span
+          aria-hidden="true"
+          className="inline-flex items-center justify-center w-7 h-7 rounded-md"
+          style={{ backgroundColor: `${color}1A`, color }}
+        >
+          <Icon className="w-4 h-4" />
+        </span>
       </div>
       <div className="text-2xl font-semibold text-[var(--foreground)] tabular-nums">
         {value}

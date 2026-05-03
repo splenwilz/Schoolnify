@@ -57,25 +57,40 @@ export function validateRow(
   const errors: RowError[] = [];
   const normalized: Record<string, string> = {};
 
-  // Map CSV columns to system field values
+  // 1) Project CSV columns onto system field keys.
   for (const [csvCol, fieldKey] of Object.entries(mapping)) {
     if (!fieldKey || fieldKey === "_ignore") continue;
     normalized[fieldKey] = row[csvCol] ?? "";
   }
 
-  // Validate each mapped field
+  // 2) Apply alias normalization BEFORE enum validation. User-entered values
+  //    like "boarder", "dad", "mom" are valid aliases that map to canonical
+  //    enum values; validating raw input rejects them with a confusing error.
+  if (normalized.gender) {
+    const mapped = GENDER_MAP[normalized.gender.toLowerCase().trim()];
+    if (mapped) normalized.gender = mapped;
+  }
+  for (const key of ["guardian1_relationship", "guardian2_relationship"]) {
+    if (normalized[key]) {
+      const mapped = RELATIONSHIP_MAP[normalized[key].toLowerCase().trim()];
+      if (mapped) normalized[key] = mapped;
+    }
+  }
+  if (normalized.boarding_status) {
+    const mapped = BOARDING_MAP[normalized.boarding_status.toLowerCase().trim()];
+    if (mapped) normalized.boarding_status = mapped;
+  }
+
+  // 3) Validate each mapped field against the (now-normalized) value.
   for (const field of fields) {
     const value = normalized[field.key] ?? "";
 
-    // Required check
     if (field.required && !value.trim()) {
       errors.push({ field: field.key, message: `${field.label} is required` });
       continue;
     }
-
     if (!value.trim()) continue;
 
-    // Type-specific validation
     switch (field.type) {
       case "date": {
         const parsed = parseDate(value);
@@ -96,33 +111,12 @@ export function validateRow(
     }
   }
 
-  // Grade level must match school config
+  // 4) Cross-field checks.
   const grade = normalized.grade_level?.trim();
   if (grade && gradeLevels.length > 0 && !gradeLevels.includes(grade)) {
     errors.push({ field: "grade_level", message: `"${grade}" is not in the school's grade levels` });
   }
 
-  // Normalize gender
-  if (normalized.gender) {
-    const mapped = GENDER_MAP[normalized.gender.toLowerCase().trim()];
-    if (mapped) normalized.gender = mapped;
-  }
-
-  // Normalize relationships
-  for (const key of ["guardian1_relationship", "guardian2_relationship"]) {
-    if (normalized[key]) {
-      const mapped = RELATIONSHIP_MAP[normalized[key].toLowerCase().trim()];
-      if (mapped) normalized[key] = mapped;
-    }
-  }
-
-  // Normalize boarding status
-  if (normalized.boarding_status) {
-    const mapped = BOARDING_MAP[normalized.boarding_status.toLowerCase().trim()];
-    if (mapped) normalized.boarding_status = mapped;
-  }
-
-  // Admission number uniqueness
   const admNo = normalized.admission_number?.trim();
   if (admNo && existingAdmissionNumbers.has(admNo)) {
     errors.push({ field: "admission_number", message: `Duplicate admission number: "${admNo}"` });

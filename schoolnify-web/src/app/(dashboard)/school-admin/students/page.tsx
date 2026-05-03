@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -91,7 +91,14 @@ export default function StudentsPage() {
     });
   }, [searchQuery, selectedGrade, isSearching, students]);
 
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, selectedGrade]);
+  // Reset pagination when filters change. Using the "Adjusting state during render"
+  // pattern from React docs avoids the cascading-render hazard of useEffect+setState.
+  const filterSignature = `${searchQuery}|${selectedGrade}`;
+  const [prevFilterSignature, setPrevFilterSignature] = useState(filterSignature);
+  if (prevFilterSignature !== filterSignature) {
+    setPrevFilterSignature(filterSignature);
+    setCurrentPage(1);
+  }
 
   const handleSelectAll = () => {
     if (selectedStudents.length === filteredStudents.length) {
