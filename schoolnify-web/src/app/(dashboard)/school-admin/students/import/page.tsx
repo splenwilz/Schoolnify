@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useSchoolSetup } from "@/hooks/use-school-setup";
 import { useImportStudents } from "@/hooks/use-students";
 import type { ImportError } from "@/types/student-api";
@@ -31,7 +31,7 @@ function buildCsvFromNormalizedRows(rows: Record<string, string>[], headers: str
 }
 
 export default function StudentImportPage() {
-  const { data: setupData } = useSchoolSetup();
+  const { data: setupData, isLoading: setupLoading } = useSchoolSetup();
   const importMutation = useImportStudents();
   const [step, setStep] = useState(0);
 
@@ -51,6 +51,9 @@ export default function StudentImportPage() {
       if (mapping[col] !== value) userEditedColumnsRef.current.add(col);
     }
     setMapping(next);
+    // Mapping changes invalidate any prior validation result -- StepValidate
+    // will recompute when the user advances.
+    setValidationResult(null);
   };
 
   // Step 3: Validation
@@ -61,12 +64,20 @@ export default function StudentImportPage() {
   const [skippedCount, setSkippedCount] = useState(0);
   const [serverErrors, setServerErrors] = useState<ImportError[]>([]);
 
-  const country = setupData?.country ?? "";
+  // We deliberately read these only when setupData is present below. Computing
+  // `fields` against a stub country would let the user upload, map, and import
+  // against a wrong field set before setup finishes loading.
+  const country = setupData?.country;
   const gradeLevels = setupData?.gradeLevels ?? [];
   const dateFormat = setupData?.dateFormat ?? "DD/MM/YYYY";
-  const fields = getAllFields(country);
+  const fields = country ? getAllFields(country) : null;
 
   const handleParsed = (csv: ParsedCSV) => {
+    // The setup-loading guard above prevents StepUpload from rendering when
+    // `fields` is null, so this is unreachable at runtime. Defensive guard for
+    // type-narrowing.
+    if (!fields) return;
+
     // A new file invalidates everything downstream: prior validation results,
     // server response counts, mutation state. Reset before stepping forward.
     setValidationResult(null);
@@ -133,6 +144,18 @@ export default function StudentImportPage() {
       }
     );
   };
+
+  // Block the entire flow until school setup loads. Without it `fields` is
+  // null and we'd otherwise let the user upload + map against a wrong/empty
+  // field set, leading to silent data loss on import.
+  if (setupLoading || !setupData || !fields) {
+    return (
+      <div className="max-w-[960px] mx-auto py-24 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-6 h-6 text-[#0891B2] animate-spin" />
+        <p className="text-[13px] text-[var(--muted)]">Loading school configuration...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[960px] mx-auto">

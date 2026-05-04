@@ -80,19 +80,24 @@ export function AttendanceTab() {
             {padding.map((_, i) => (
               <div key={`pad-${i}`} />
             ))}
-            {last30Days.map((day, i) => (
-              <div
-                key={i}
-                title={`${day.date.toLocaleDateString()} - ${day.status}`}
-                className={cn(
-                  "aspect-square rounded-sm transition-transform hover:scale-110",
-                  day.status === "present" && "bg-[#10B981]",
-                  day.status === "late" && "bg-[#F59E0B]",
-                  day.status === "absent" && "bg-[#EF4444]",
-                  day.status === "weekend" && "bg-[var(--background-secondary)]"
-                )}
-              />
-            ))}
+            {last30Days.map((day) => {
+              const announce = `${day.date.toLocaleDateString()} - ${day.status}`;
+              return (
+                <div
+                  key={day.date.toISOString()}
+                  title={announce}
+                  aria-label={announce}
+                  role="img"
+                  className={cn(
+                    "aspect-square rounded-sm transition-transform hover:scale-110",
+                    day.status === "present" && "bg-[#10B981]",
+                    day.status === "late" && "bg-[#F59E0B]",
+                    day.status === "absent" && "bg-[#EF4444]",
+                    day.status === "weekend" && "bg-[var(--background-secondary)]"
+                  )}
+                />
+              );
+            })}
           </div>
           {/* Legend */}
           <div className="flex items-center gap-4 text-xs text-[var(--muted)]">

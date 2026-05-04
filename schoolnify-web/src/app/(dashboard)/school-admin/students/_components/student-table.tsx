@@ -97,7 +97,13 @@ export function StudentTable({
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
                 <th className="w-10 px-4 py-3">
-                  <input type="checkbox" checked={allSelected} onChange={onSelectAll} className="rounded border-[var(--border)] accent-[#0891B2]" />
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={onSelectAll}
+                    aria-label="Select all students on page"
+                    className="rounded border-[var(--border)] accent-[#0891B2]"
+                  />
                 </th>
                 <th className="px-4 py-3 text-left">
                   <button type="button" onClick={() => toggleSort("name")} className="flex items-center gap-1 text-[11px] font-semibold text-[var(--muted)] uppercase tracking-wider">
@@ -131,7 +137,13 @@ export function StudentTable({
                     className={cn("border-b border-[var(--border)] last:border-0 group transition-colors", isSelected ? "bg-[#0891B2]/5" : "hover:bg-[var(--background-secondary)]")}
                   >
                     <td className="px-4 py-3">
-                      <input type="checkbox" checked={isSelected} onChange={() => onSelectStudent(student.id)} className="rounded border-[var(--border)] accent-[#0891B2]" />
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => onSelectStudent(student.id)}
+                        aria-label={`Select student ${student.firstName} ${student.lastName}`}
+                        className="rounded border-[var(--border)] accent-[#0891B2]"
+                      />
                     </td>
                     <td className="px-4 py-3">
                       <Link href={`/school-admin/students/${student.id}`} className="flex items-center gap-3 group/link">

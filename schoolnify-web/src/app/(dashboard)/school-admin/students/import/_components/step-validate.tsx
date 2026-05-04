@@ -167,11 +167,32 @@ export function StepValidate({ rows, mapping, fields, gradeLevels, dateFormat, v
                           ) : (
                             <input
                               autoFocus
-                              type={f.field?.type === "date" ? "date" : "text"}
+                              // text inputs everywhere -- a native type="date" widget
+                              // expects ISO and would silently blank user-entered
+                              // formats like "01/02/2026". The downstream parseDate
+                              // already handles ISO + the school's configured format.
+                              type="text"
                               defaultValue={rawValue}
-                              onBlur={(e) => handleCellEdit(result.rowIndex, f.csvCol, e.target.value)}
+                              onBlur={(e) => {
+                                const next = e.target.value;
+                                // Don't overwrite a non-empty raw value with "" --
+                                // that would silently destroy data on accidental
+                                // blur. Treat empty-after-non-empty as cancel.
+                                if (next === "" && rawValue !== "") {
+                                  setEditingCell(null);
+                                  return;
+                                }
+                                handleCellEdit(result.rowIndex, f.csvCol, next);
+                              }}
                               onKeyDown={(e) => {
-                                if (e.key === "Enter") handleCellEdit(result.rowIndex, f.csvCol, (e.target as HTMLInputElement).value);
+                                if (e.key === "Enter") {
+                                  const next = (e.target as HTMLInputElement).value;
+                                  if (next === "" && rawValue !== "") {
+                                    setEditingCell(null);
+                                    return;
+                                  }
+                                  handleCellEdit(result.rowIndex, f.csvCol, next);
+                                }
                                 if (e.key === "Escape") setEditingCell(null);
                               }}
                               className="w-full px-2 py-1 text-[13px] bg-[var(--card)] border border-[#0891B2] rounded text-[var(--foreground)] focus:outline-none"
@@ -184,9 +205,18 @@ export function StepValidate({ rows, mapping, fields, gradeLevels, dateFormat, v
                     return (
                       <td
                         key={f.key}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={hasError ? `${f.label}: ${displayValue}. Has errors. Press Enter to edit.` : `${f.label}: ${displayValue}. Press Enter to edit.`}
                         onClick={() => setEditingCell({ row: result.rowIndex, field: f.key })}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setEditingCell({ row: result.rowIndex, field: f.key });
+                          }
+                        }}
                         className={cn(
-                          "px-3 py-2 max-w-[150px] truncate cursor-pointer hover:bg-[var(--background-secondary)] rounded transition-colors",
+                          "px-3 py-2 max-w-[150px] truncate cursor-pointer hover:bg-[var(--background-secondary)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[#0891B2]/40",
                           hasError ? "text-red-500 font-medium" : "text-[var(--foreground)]"
                         )}
                         title="Click to edit"

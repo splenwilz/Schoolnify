@@ -15,7 +15,11 @@ const gradients = [
 ];
 
 function getGradientIndex(firstName: string, lastName: string): number {
-  const str = `${firstName ?? ""}${lastName ?? ""}` || "?";
+  // Normalize whitespace before hashing so " John " and "John" land on the
+  // same gradient as their initials would.
+  const f = (firstName ?? "").trim().replace(/\s+/g, " ");
+  const l = (lastName ?? "").trim().replace(/\s+/g, " ");
+  const str = `${f}${l}` || "?";
   return str.split("").reduce((sum, c) => sum + c.charCodeAt(0), 0) % gradients.length;
 }
 

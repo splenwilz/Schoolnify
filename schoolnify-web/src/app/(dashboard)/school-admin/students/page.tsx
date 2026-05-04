@@ -102,11 +102,22 @@ export default function StudentsPage() {
     setCurrentPage(1);
   }
 
-  const handleSelectAll = () => {
-    if (selectedStudents.length === filteredStudents.length) {
-      setSelectedStudents([]);
+  // The visible page slice. Select-all and the page passed into StudentTable
+  // must agree -- otherwise the header checkbox toggles a row set the user
+  // can't see, and `allSelected` flickers as the page changes.
+  const currentPageStudents = useMemo(
+    () => filteredStudents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+    [filteredStudents, currentPage]
+  );
+
+  const handleSelectAllPage = () => {
+    const pageIds = currentPageStudents.map((s) => s.id);
+    const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedStudents.includes(id));
+    if (allOnPageSelected) {
+      // Deselect everything on this page (preserve other pages' selections).
+      setSelectedStudents((prev) => prev.filter((id) => !pageIds.includes(id)));
     } else {
-      setSelectedStudents(filteredStudents.map((s) => s.id));
+      setSelectedStudents((prev) => Array.from(new Set([...prev, ...pageIds])));
     }
   };
 
@@ -150,10 +161,14 @@ export default function StudentsPage() {
 
   // Export strategy: always prefer the backend export so the column schema is
   // consistent regardless of filters. Selected-row exports and offline failure
-  // fall back to building the CSV locally from the same Student shape.
+  // fall back to building the CSV locally from the same Student shape. Both
+  // paths must reflect the *same* visible filter set (grade + search) so the
+  // user gets the export they expect.
   const handleExportAll = async () => {
+    const filters: { grade_level?: string; search?: string } = {};
+    if (selectedGrade) filters.grade_level = selectedGrade;
+    if (searchQuery.trim()) filters.search = searchQuery.trim();
     try {
-      const filters = selectedGrade ? { grade_level: selectedGrade } : {};
       await exportStudentsCsv(filters);
     } catch {
       exportLocally(filteredStudents.length > 0 ? filteredStudents : students);
@@ -287,7 +302,7 @@ export default function StudentsPage() {
               <StudentTable
                 students={filteredStudents}
                 selectedStudents={selectedStudents}
-                onSelectAll={handleSelectAll}
+                onSelectAll={handleSelectAllPage}
                 onSelectStudent={handleSelectStudent}
                 currentPage={currentPage}
                 onPageChange={setCurrentPage}

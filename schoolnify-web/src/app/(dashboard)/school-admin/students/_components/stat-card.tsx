@@ -61,7 +61,14 @@ export function StatCard({
       </div>
       <div className="flex items-center gap-2 mt-1">
         {change && (
-          <span className={cn("text-xs font-medium", changeUp ? "text-[#10B981]" : "text-[#EF4444]")}>
+          <span
+            className={cn(
+              "text-xs font-medium",
+              changeUp === true && "text-[#10B981]",
+              changeUp === false && "text-[#EF4444]",
+              changeUp === undefined && "text-[var(--muted)]"
+            )}
+          >
             {change}
           </span>
         )}

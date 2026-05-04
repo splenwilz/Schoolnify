@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
@@ -148,11 +148,13 @@ export function Modal({ open, onClose, title, description, children, maxWidth = 
   // Close-on-backdrop semantics: close only if BOTH mousedown and mouseup
   // occurred on the backdrop itself. This avoids the common bug where dragging
   // a text selection from inside the dialog and releasing on the backdrop
-  // dismisses the modal.
-  const handleBackdropMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+  // dismisses the modal. We observe mousedown in the *capture* phase so the
+  // dialog content's bubble-phase `stopPropagation` can't hide the initial
+  // pointer-down from us.
+  const handleBackdropMouseDownCapture = (e: MouseEvent<HTMLDivElement>) => {
     mouseDownInsideRef.current = e.target !== e.currentTarget;
   };
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget && !mouseDownInsideRef.current) {
       onClose();
     }
@@ -168,7 +170,7 @@ export function Modal({ open, onClose, title, description, children, maxWidth = 
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-          onMouseDown={handleBackdropMouseDown}
+          onMouseDownCapture={handleBackdropMouseDownCapture}
           onClick={handleBackdropClick}
         >
           <motion.div
