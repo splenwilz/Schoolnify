@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, CheckCircle2, Users, AlertTriangle, Loader2, RefreshCcw, WifiOff } from "lucide-react";
-import { useStudents, usePromoteStudents } from "@/hooks/use-students";
+import { useAllStudents, usePromoteStudents } from "@/hooks/use-students";
 import { useSchoolSetup } from "@/hooks/use-school-setup";
 import { Avatar } from "../_components/avatar";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ export default function PromotionPage() {
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
   const [applied, setApplied] = useState(false);
 
-  const { data, isLoading, error, refetch } = useStudents({ page_size: 1000 });
+  const { data, isLoading, error, refetch } = useAllStudents({ status: "active" });
   const { data: setupData } = useSchoolSetup();
   const promoteMutation = usePromoteStudents();
   const students = useMemo(() => data?.students ?? [], [data?.students]);
@@ -66,12 +66,18 @@ export default function PromotionPage() {
   const retainCount = classStudents.filter((s) => getDecision(s.id) === "retain").length;
   const graduateCount = classStudents.filter((s) => getDecision(s.id) === "graduate").length;
 
+  // The selected grade has no successor and isn't the last configured grade.
+  // This happens when the student's grade isn't in school setup at all
+  // (custom/imported grade names). We can't promote without a target, so
+  // block Apply and show an explicit warning instead of silently retaining.
+  const cannotPromote =
+    !!selectedGrade && !isLastGrade && configuredGrades.length > 0 && target === null;
+
   const handleApply = () => {
     if (!selectedGrade || classStudents.length === 0 || promoteMutation.isPending) return;
-    if (!academicYear) {
-      // Defensive: setup must declare the current academic year before promotion.
-      return;
-    }
+    if (!academicYear) return;
+    if (cannotPromote) return;
+
     // Snapshot decisions + class list at click time so the payload reflects the
     // user's current intent, not whatever state lands during the mutation.
     const decisionSnapshot = { ...decisions };
@@ -83,12 +89,10 @@ export default function PromotionPage() {
       academic_year: academicYear,
       decisions: classSnapshot.map((s) => {
         const d: Decision = decisionSnapshot[s.id] ?? (isLastSnapshot ? "graduate" : "promote");
-        // Promote without a successor grade is invalid -- coerce to "retain".
-        const action: Decision = d === "promote" && !targetSnapshot ? "retain" : d;
         return {
           student_id: s.id,
-          action,
-          to_grade: action === "promote" ? (targetSnapshot ?? undefined) : undefined,
+          action: d,
+          to_grade: d === "promote" ? (targetSnapshot ?? undefined) : undefined,
         };
       }),
     };
@@ -195,6 +199,19 @@ export default function PromotionPage() {
       {/* Student list with promote/retain toggle */}
       {selectedGrade && classStudents.length > 0 && (
         <>
+          {cannotPromote && (
+            <div className="mb-4 flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[13px] text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium">No successor grade configured</p>
+                <p className="text-[12px] mt-0.5">
+                  &quot;{selectedGrade}&quot; isn&apos;t in your school&apos;s grade ladder, so promotion has no target.
+                  Add it to school setup&apos;s grade levels (in promotion order) before applying.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Summary */}
           <div className="flex items-center gap-4 mb-4">
             <div className="flex items-center gap-2">
@@ -318,8 +335,14 @@ export default function PromotionPage() {
             </div>
             <button
               onClick={handleApply}
-              disabled={promoteMutation.isPending || !academicYear}
-              title={!academicYear ? "Set the current academic year in school setup" : undefined}
+              disabled={promoteMutation.isPending || !academicYear || cannotPromote}
+              title={
+                !academicYear
+                  ? "Set the current academic year in school setup"
+                  : cannotPromote
+                    ? "Add this grade to school setup's grade ladder before promoting"
+                    : undefined
+              }
               className="px-5 py-2.5 text-[14px] font-medium rounded-lg bg-[#0891B2] text-white hover:bg-[#0E7490] disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2"
             >
               {promoteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}

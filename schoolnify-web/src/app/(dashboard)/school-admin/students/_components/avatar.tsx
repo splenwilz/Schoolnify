@@ -15,8 +15,15 @@ const gradients = [
 ];
 
 function getGradientIndex(firstName: string, lastName: string): number {
-  const str = `${firstName}${lastName}`;
+  const str = `${firstName ?? ""}${lastName ?? ""}` || "?";
   return str.split("").reduce((sum, c) => sum + c.charCodeAt(0), 0) % gradients.length;
+}
+
+/** Build avatar initials safely. Falls back to "?" so we never render the literal string "undefined". */
+function getInitials(firstName: string, lastName: string): string {
+  const f = firstName?.trim()?.[0];
+  const l = lastName?.trim()?.[0];
+  return ((f ?? "") + (l ?? "") || "?").toUpperCase();
 }
 
 const sizeMap = {
@@ -42,7 +49,7 @@ interface AvatarProps {
 
 export function Avatar({ firstName, lastName, avatar, size = "sm", className, ring }: AvatarProps) {
   const gradient = gradients[getGradientIndex(firstName, lastName)];
-  const initials = `${firstName[0]}${lastName[0]}`;
+  const initials = getInitials(firstName, lastName);
   const hasRoundedOverride = className?.includes("rounded-");
 
   if (avatar) {

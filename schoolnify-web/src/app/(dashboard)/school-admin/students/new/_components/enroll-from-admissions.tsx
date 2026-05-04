@@ -158,6 +158,7 @@ export function EnrollFromAdmissions() {
                   type="button"
                   onClick={() => {
                     setEnrollingId(app.id);
+                    setClassAssignment("");
                     setDateOfBirth("");
                     setGender("");
                   }}
@@ -175,8 +176,11 @@ export function EnrollFromAdmissions() {
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[var(--muted)] mb-1">Assign to Class <span className="text-red-500">*</span></label>
+                    <label htmlFor={`enroll-class-${app.id}`} className="block text-[12px] font-medium text-[var(--muted)] mb-1">
+                      Assign to Class <span className="text-red-500">*</span>
+                    </label>
                     <select
+                      id={`enroll-class-${app.id}`}
                       value={classAssignment}
                       onChange={(e) => setClassAssignment(e.target.value)}
                       className="w-full px-3 py-2 text-[14px] bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[#0891B2]"
@@ -188,8 +192,11 @@ export function EnrollFromAdmissions() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[var(--muted)] mb-1">Date of Birth <span className="text-red-500">*</span></label>
+                    <label htmlFor={`enroll-dob-${app.id}`} className="block text-[12px] font-medium text-[var(--muted)] mb-1">
+                      Date of Birth <span className="text-red-500">*</span>
+                    </label>
                     <input
+                      id={`enroll-dob-${app.id}`}
                       type="date"
                       value={dateOfBirth}
                       max={new Date().toISOString().slice(0, 10)}
@@ -198,8 +205,11 @@ export function EnrollFromAdmissions() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[var(--muted)] mb-1">Gender <span className="text-red-500">*</span></label>
+                    <label htmlFor={`enroll-gender-${app.id}`} className="block text-[12px] font-medium text-[var(--muted)] mb-1">
+                      Gender <span className="text-red-500">*</span>
+                    </label>
                     <select
+                      id={`enroll-gender-${app.id}`}
                       value={gender}
                       onChange={(e) => setGender(e.target.value as "Male" | "Female" | "")}
                       className="w-full px-3 py-2 text-[14px] bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[#0891B2]"

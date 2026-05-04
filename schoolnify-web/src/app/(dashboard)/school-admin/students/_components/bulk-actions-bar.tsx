@@ -25,21 +25,22 @@ export function BulkActionsBar({ count, onClear, onExport, onMessage, onStatusCh
           <span className="text-sm font-medium">{count} selected</span>
           <div className="w-px h-5 bg-[var(--background)]/20" />
           {onExport && (
-            <button onClick={onExport} className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
+            <button type="button" onClick={onExport} className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
               <Download className="w-4 h-4" /> Export
             </button>
           )}
           {onMessage && (
-            <button onClick={onMessage} className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
+            <button type="button" onClick={onMessage} className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
               <Mail className="w-4 h-4" /> Message
             </button>
           )}
           {onStatusChange && (
-            <button onClick={onStatusChange} className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
+            <button type="button" onClick={onStatusChange} className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
               <UserCog className="w-4 h-4" /> Status
             </button>
           )}
           <button
+            type="button"
             onClick={onClear}
             aria-label="Clear selection"
             className="ml-2 p-1 rounded-full hover:bg-[var(--background)]/10 transition-colors"

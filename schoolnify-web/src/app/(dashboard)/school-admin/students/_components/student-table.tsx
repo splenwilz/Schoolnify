@@ -7,19 +7,10 @@ import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "luci
 import { cn } from "@/lib/utils";
 import { Avatar } from "./avatar";
 import type { Student } from "@/types/student";
-import { primaryGuardian } from "@/types/student";
+import { primaryGuardian, STATUS_LABEL } from "@/types/student";
 
 type SortField = "name" | "grade" | "admNo" | "gender" | null;
 type SortDir = "asc" | "desc";
-
-const STATUS_LABEL: Record<Student["status"], string> = {
-  active: "Active",
-  inactive: "Inactive",
-  suspended: "Suspended",
-  graduated: "Graduated",
-  transferred: "Transferred",
-  withdrawn: "Withdrawn",
-};
 
 const STATUS_DOT: Record<Student["status"], string> = {
   active: "bg-[#10B981]",
@@ -90,8 +81,11 @@ export function StudentTable({
     }
   });
 
-  const totalPages = Math.ceil(sorted.length / itemsPerPage);
-  const start = (currentPage - 1) * itemsPerPage;
+  const totalPages = Math.max(1, Math.ceil(sorted.length / itemsPerPage));
+  // Clamp the requested page so deletes / re-filters don't leave us on an
+  // empty out-of-range page.
+  const safePage = Math.min(Math.max(currentPage, 1), totalPages);
+  const start = (safePage - 1) * itemsPerPage;
   const paged = sorted.slice(start, start + itemsPerPage);
   const allSelected = paged.length > 0 && paged.every((s) => selectedStudents.includes(s.id));
 
@@ -177,15 +171,15 @@ export function StudentTable({
         <div className="flex items-center justify-between mt-4 text-[13px] text-[var(--muted)]">
           <span>{start + 1}-{Math.min(start + itemsPerPage, sorted.length)} of {sorted.length}</span>
           <div className="flex items-center gap-1">
-            <button type="button" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="p-1.5 rounded hover:bg-[var(--background-secondary)] disabled:opacity-30">
+            <button type="button" onClick={() => onPageChange(safePage - 1)} disabled={safePage === 1} className="p-1.5 rounded hover:bg-[var(--background-secondary)] disabled:opacity-30">
               <ChevronLeft className="w-4 h-4" />
             </button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 5).map((p) => (
-              <button key={p} type="button" onClick={() => onPageChange(p)} className={cn("w-8 h-8 rounded text-[13px] font-medium", p === currentPage ? "bg-[#0891B2] text-white" : "hover:bg-[var(--background-secondary)]")}>
+              <button key={p} type="button" onClick={() => onPageChange(p)} className={cn("w-8 h-8 rounded text-[13px] font-medium", p === safePage ? "bg-[#0891B2] text-white" : "hover:bg-[var(--background-secondary)]")}>
                 {p}
               </button>
             ))}
-            <button type="button" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="p-1.5 rounded hover:bg-[var(--background-secondary)] disabled:opacity-30">
+            <button type="button" onClick={() => onPageChange(safePage + 1)} disabled={safePage === totalPages} className="p-1.5 rounded hover:bg-[var(--background-secondary)] disabled:opacity-30">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>

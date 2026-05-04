@@ -1,15 +1,25 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const gradeHistory = [
-  { subject: "Mathematics", grade: "A", score: 92, teacher: "Mr. Smith" },
-  { subject: "English", grade: "A-", score: 88, teacher: "Ms. Davis" },
-  { subject: "Science", grade: "B+", score: 85, teacher: "Mr. Lee" },
-  { subject: "History", grade: "A", score: 94, teacher: "Ms. Wilson" },
-  { subject: "Physical Education", grade: "A", score: 95, teacher: "Mr. Brown" },
-];
+/**
+ * Academics tab.
+ *
+ * The grades module isn't shipped yet, so the data source is empty by default.
+ * When the module lands, replace `gradeHistory` below with a real hook call,
+ * e.g. `const { data: gradeHistory = [] } = useStudentGrades(studentId)`.
+ * The layout below is already wired and matches the design that appeared in
+ * earlier prototypes — leaving it intact avoids re-doing the UI work later.
+ */
+
+interface GradeEntry {
+  subject: string;
+  grade: string; // letter grade, e.g. "A", "B+", "C-"
+  score: number; // 0-100
+  teacher: string;
+}
 
 const gradeColorMap: Record<string, string> = {
   A: "bg-[#10B981]/10 text-[#10B981]",
@@ -19,6 +29,28 @@ const gradeColorMap: Record<string, string> = {
 };
 
 export function AcademicsTab() {
+  // TODO: replace with real grades data once the grades module ships.
+  const gradeHistory: GradeEntry[] = [];
+
+  if (gradeHistory.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-10 flex flex-col items-center justify-center text-center"
+      >
+        <div className="w-12 h-12 rounded-full bg-[var(--background-secondary)] flex items-center justify-center mb-3">
+          <GraduationCap className="w-5 h-5 text-[var(--muted)]" />
+        </div>
+        <p className="text-[15px] font-medium text-[var(--foreground)]">No grades recorded yet</p>
+        <p className="text-[13px] text-[var(--muted)] mt-1 max-w-md">
+          Subject scores and term grades will appear here once the grades module is wired.
+        </p>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}

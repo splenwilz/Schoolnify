@@ -15,6 +15,20 @@ interface StatCardProps {
   index: number;
 }
 
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * Return inline styles for the icon tint, defending against non-hex colors.
+ * The 10% alpha background is built by appending `1A` to a 6-digit hex; if the
+ * caller passes anything else we fall back to neutral CSS variables.
+ */
+function tintStyle(color: string): React.CSSProperties {
+  if (HEX_RE.test(color)) {
+    return { backgroundColor: `${color}1A`, color };
+  }
+  return { backgroundColor: "var(--background-secondary)", color: "var(--muted)" };
+}
+
 export function StatCard({
   icon: Icon,
   label,
@@ -37,7 +51,7 @@ export function StatCard({
         <span
           aria-hidden="true"
           className="inline-flex items-center justify-center w-7 h-7 rounded-md"
-          style={{ backgroundColor: `${color}1A`, color }}
+          style={tintStyle(color)}
         >
           <Icon className="w-4 h-4" />
         </span>

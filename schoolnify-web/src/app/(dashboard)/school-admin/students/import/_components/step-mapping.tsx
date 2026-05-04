@@ -35,6 +35,25 @@ export function StepMapping({ headers, sampleRows, fields, mapping, onMappingCha
   const matchedCount = Object.values(mapping).filter((v) => v !== "_ignore").length;
   const ignoredCount = Object.values(mapping).filter((v) => v === "_ignore").length;
 
+  // Detect collisions: multiple CSV columns mapped to the same system field.
+  // Without this warning, the validator silently lets the last column win and
+  // drops the others' data.
+  const fieldUsage = new Map<string, string[]>(); // fieldKey -> CSV columns
+  for (const [csvCol, fieldKey] of Object.entries(mapping)) {
+    if (fieldKey === "_ignore") continue;
+    if (!fieldUsage.has(fieldKey)) fieldUsage.set(fieldKey, []);
+    fieldUsage.get(fieldKey)!.push(csvCol);
+  }
+  const duplicatedFieldKeys = new Set(
+    [...fieldUsage.entries()].filter(([, cols]) => cols.length > 1).map(([k]) => k)
+  );
+  const collisionDetails = [...fieldUsage.entries()]
+    .filter(([, cols]) => cols.length > 1)
+    .map(([fieldKey, cols]) => {
+      const label = fields.find((f) => f.key === fieldKey)?.label ?? fieldKey;
+      return `${label}: ${cols.join(", ")}`;
+    });
+
   return (
     <div className="space-y-6">
       {/* Summary */}
@@ -55,6 +74,23 @@ export function StepMapping({ headers, sampleRows, fields, mapping, onMappingCha
         )}
       </div>
 
+      {collisionDetails.length > 0 && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[13px] text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">Multiple columns mapped to the same field</p>
+            <ul className="text-[12px] mt-1 list-disc list-inside">
+              {collisionDetails.map((d) => (
+                <li key={d}>{d}</li>
+              ))}
+            </ul>
+            <p className="text-[12px] mt-1">
+              Only one column can map to each field. Change the duplicates to a different field or set them to &quot;Ignore&quot;.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Mapping table */}
       <div className="rounded-xl border border-[var(--border)] overflow-hidden">
         {/* Header */}
@@ -71,12 +107,19 @@ export function StepMapping({ headers, sampleRows, fields, mapping, onMappingCha
           const status = getStatus(fieldKey, fields);
           const samples = sampleRows.map((r) => r[header] ?? "").filter(Boolean).slice(0, 3);
 
+          const isDuplicate = fieldKey !== "_ignore" && duplicatedFieldKeys.has(fieldKey);
           return (
             <div
               key={header}
               className={cn(
                 "grid grid-cols-[200px_40px_1fr_200px] gap-0 items-center px-4 py-2.5 border-b border-[var(--border)] last:border-0",
-                status === "matched" ? "bg-[#10B981]/5" : status === "ignored" ? "opacity-50" : ""
+                isDuplicate
+                  ? "bg-amber-500/5"
+                  : status === "matched"
+                    ? "bg-[#10B981]/5"
+                    : status === "ignored"
+                      ? "opacity-50"
+                      : ""
               )}
             >
               {/* CSV column name */}
@@ -134,7 +177,7 @@ export function StepMapping({ headers, sampleRows, fields, mapping, onMappingCha
         <button
           type="button"
           onClick={onNext}
-          disabled={missingRequired.length > 0}
+          disabled={missingRequired.length > 0 || collisionDetails.length > 0}
           className="px-6 py-2.5 text-[14px] font-medium rounded-lg bg-[#0891B2] text-white hover:bg-[#0E7490] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Next: Validate

@@ -5,7 +5,15 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useStudent } from "@/hooks/use-students";
+import type { Student } from "@/types/student";
 import { NewStudentForm } from "../../new/_components/new-student-form";
+
+/** Strip the `includes` wrapper that `useStudent` adds so the form sees a plain Student. */
+function extractStudent(s: Student & { includes?: unknown }): Student {
+  const { includes: _includes, ...rest } = s;
+  void _includes;
+  return rest;
+}
 
 export default function EditStudentPage({
   params,
@@ -64,7 +72,7 @@ export default function EditStudentPage({
         </div>
       </div>
 
-      <NewStudentForm initialStudent={student} />
+      <NewStudentForm initialStudent={extractStudent(student)} />
     </motion.div>
   );
 }

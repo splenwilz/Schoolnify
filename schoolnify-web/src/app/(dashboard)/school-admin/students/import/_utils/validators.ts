@@ -17,29 +17,62 @@ export interface ValidationResult {
 // Date parsing -- accept multiple formats, normalize to YYYY-MM-DD
 // ---------------------------------------------------------------------------
 
-const DATE_PATTERNS: { regex: RegExp; parse: (m: RegExpMatchArray) => string }[] = [
-  // YYYY-MM-DD (ISO)
-  { regex: /^(\d{4})-(\d{1,2})-(\d{1,2})$/, parse: (m) => `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}` },
-  // DD/MM/YYYY or DD-MM-YYYY
-  { regex: /^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$/, parse: (m) => `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` },
-  // MM/DD/YYYY (US) -- only if month <= 12 and day > 12 to disambiguate
-  // We default to DD/MM/YYYY; US format is handled via explicit date format setting
-];
+/**
+ * Date format hint provided by school setup. Determines how ambiguous numeric
+ * dates like "01/02/2026" are interpreted. ISO is always accepted regardless.
+ */
+export type DateFormat = "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
 
-function parseDate(value: string): string | null {
+const ISO_RE = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
+const NUMERIC_RE = /^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$/;
+
+function isoFromParts(year: string, month: string, day: string): string | null {
+  const iso = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : iso;
+}
+
+/**
+ * Parse `value` to YYYY-MM-DD using the school's configured date format to
+ * disambiguate numeric forms. ISO ("YYYY-MM-DD") is always accepted; numeric
+ * separators "/" or "-" are interpreted by the supplied format.
+ *
+ * Falls through to `new Date(value)` for free-form strings (e.g., "Jan 5, 2026")
+ * but only when no other parser matches. Returns null when nothing parses.
+ */
+export function parseDate(value: string, dateFormat: DateFormat = "DD/MM/YYYY"): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
-  for (const pattern of DATE_PATTERNS) {
-    const match = trimmed.match(pattern.regex);
-    if (match) {
-      const iso = pattern.parse(match);
-      const d = new Date(iso);
-      if (!isNaN(d.getTime())) return iso;
+
+  // ISO first -- unambiguous and always preferred.
+  const iso = trimmed.match(ISO_RE);
+  if (iso) {
+    const result = isoFromParts(iso[1], iso[2], iso[3]);
+    if (result) return result;
+  }
+
+  const numeric = trimmed.match(NUMERIC_RE);
+  if (numeric) {
+    const [, a, b, year] = numeric;
+    if (dateFormat === "MM/DD/YYYY") {
+      const result = isoFromParts(year, a, b);
+      if (result) return result;
+    } else {
+      // DD/MM/YYYY (default and YYYY-MM-DD form falls back here as DD/MM)
+      const result = isoFromParts(year, b, a);
+      if (result) return result;
     }
   }
-  // Try native Date parse as last resort
-  const d = new Date(trimmed);
-  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+
+  // Last resort: native Date parser. Locale-dependent but better than rejecting
+  // values like "Jan 5 2026" that humans clearly intend as dates.
+  const native = new Date(trimmed);
+  if (!isNaN(native.getTime())) {
+    const yyyy = native.getFullYear();
+    const mm = String(native.getMonth() + 1).padStart(2, "0");
+    const dd = String(native.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
   return null;
 }
 
@@ -53,6 +86,7 @@ export function validateRow(
   fields: StudentField[],
   gradeLevels: string[],
   existingAdmissionNumbers: Set<string>,
+  dateFormat: DateFormat = "DD/MM/YYYY",
 ): ValidationResult {
   const errors: RowError[] = [];
   const normalized: Record<string, string> = {};
@@ -93,7 +127,7 @@ export function validateRow(
 
     switch (field.type) {
       case "date": {
-        const parsed = parseDate(value);
+        const parsed = parseDate(value, dateFormat);
         if (!parsed) {
           errors.push({ field: field.key, message: `Invalid date format: "${value}"` });
         } else {
@@ -103,7 +137,8 @@ export function validateRow(
       }
       case "enum": {
         const lower = value.toLowerCase().trim();
-        if (field.enumValues && !field.enumValues.includes(lower)) {
+        // An empty / undefined enumValues list means "free-text", not "reject all".
+        if (field.enumValues && field.enumValues.length > 0 && !field.enumValues.includes(lower)) {
           errors.push({ field: field.key, message: `"${value}" is not valid. Expected: ${field.enumValues.join(", ")}` });
         }
         break;
@@ -141,6 +176,7 @@ export function validateAllRows(
   mapping: Record<string, string>,
   fields: StudentField[],
   gradeLevels: string[],
+  dateFormat: DateFormat = "DD/MM/YYYY",
 ): BatchValidationResult {
   const results: (ValidationResult & { rowIndex: number })[] = [];
   const seenAdmissionNumbers = new Set<string>();
@@ -148,7 +184,7 @@ export function validateAllRows(
   let errorCount = 0;
 
   for (let i = 0; i < rows.length; i++) {
-    const result = validateRow(rows[i], mapping, fields, gradeLevels, seenAdmissionNumbers);
+    const result = validateRow(rows[i], mapping, fields, gradeLevels, seenAdmissionNumbers, dateFormat);
     results.push({ ...result, rowIndex: i });
     if (result.valid) {
       validCount++;

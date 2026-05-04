@@ -144,7 +144,7 @@ export function ClassChangeDialog({ open, onClose, student }: ClassChangeDialogP
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!gradeLevel || mutation.isPending}
+            disabled={!gradeLevel || mutation.isPending || gradeLevels.length === 0}
             className="px-4 py-2 text-[13px] font-medium rounded-lg bg-[#0891B2] text-white hover:bg-[#0E7490] disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1.5"
           >
             {mutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}

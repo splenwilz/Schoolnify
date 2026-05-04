@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Plus, Trash2, Loader2 } from "lucide-react";
 import { useSchoolSetup } from "@/hooks/use-school-setup";
@@ -64,13 +64,44 @@ const RELATIONSHIPS = ["Father", "Mother", "Guardian", "Step-Father", "Step-Moth
 // Reusable field components
 // ---------------------------------------------------------------------------
 
+/**
+ * Render a labelled form field. The single child element receives an auto-
+ * generated `id` (when it doesn't already have one) and the label uses
+ * `htmlFor` pointing at it -- so screen readers correctly associate the two
+ * without each call site having to mint matching ids by hand.
+ */
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  const generatedId = useId();
+  let labelTargetId: string | undefined;
+  let renderedChildren: React.ReactNode = children;
+
+  if (isValidElement(children)) {
+    const child = children as ReactElement<{ id?: string }>;
+    labelTargetId = child.props.id ?? generatedId;
+    if (!child.props.id) {
+      renderedChildren = cloneElement(child, { id: labelTargetId });
+    }
+  } else {
+    // Fallback when caller passes a fragment or text -- only the first valid
+    // element gets the id.
+    const arr = Children.toArray(children);
+    const idx = arr.findIndex(isValidElement);
+    if (idx !== -1) {
+      const child = arr[idx] as ReactElement<{ id?: string }>;
+      labelTargetId = child.props.id ?? generatedId;
+      if (!child.props.id) {
+        arr[idx] = cloneElement(child, { id: labelTargetId });
+      }
+      renderedChildren = arr;
+    }
+  }
+
   return (
     <div>
-      <label className="block text-[13px] font-medium text-[var(--muted)] mb-1">
+      <label htmlFor={labelTargetId} className="block text-[13px] font-medium text-[var(--muted)] mb-1">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
-      {children}
+      {renderedChildren}
     </div>
   );
 }
@@ -174,6 +205,8 @@ export function NewStudentForm({ initialStudent }: NewStudentFormProps = {}) {
 
   const validate = (): string | null => {
     if (!form.firstName.trim() || !form.lastName.trim()) return "First and last name are required.";
+    if (!form.gender) return "Gender is required.";
+    if (!form.gradeLevel) return "Grade level is required.";
     if (!form.dateOfBirth) return "Date of birth is required.";
     const dob = new Date(form.dateOfBirth);
     if (isNaN(dob.getTime())) return "Date of birth is not a valid date.";
@@ -189,12 +222,28 @@ export function NewStudentForm({ initialStudent }: NewStudentFormProps = {}) {
     if (form.phone.trim() && !/^[\d+\-\s()]{6,}$/.test(form.phone.trim())) {
       return "Phone number contains invalid characters.";
     }
-    for (const g of guardians) {
-      if (g.firstName.trim() && g.email && g.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g.email.trim())) {
-        return "Guardian email is not valid.";
+    // Validate each guardian explicitly. A guardian "row" with any field filled
+    // counts as in-progress and must be completed -- otherwise the user thinks
+    // they entered a guardian but it gets silently dropped on save.
+    for (let i = 0; i < guardians.length; i++) {
+      const g = guardians[i];
+      const anyFilled =
+        g.firstName.trim() || g.lastName.trim() || g.phone.trim() || g.relationship || (g.email ?? "").trim();
+      if (!anyFilled) continue; // empty extra row -- ignore on submit
+
+      const missing: string[] = [];
+      if (!g.firstName.trim()) missing.push("first name");
+      if (!g.lastName.trim()) missing.push("last name");
+      if (!g.phone.trim()) missing.push("phone");
+      if (!g.relationship) missing.push("relationship");
+      if (missing.length > 0) {
+        return `Guardian ${i + 1} is missing: ${missing.join(", ")}.`;
       }
-      if (g.phone.trim() && !/^[\d+\-\s()]{6,}$/.test(g.phone.trim())) {
-        return "Guardian phone contains invalid characters.";
+      if (g.email && g.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g.email.trim())) {
+        return `Guardian ${i + 1} email is not valid.`;
+      }
+      if (!/^[\d+\-\s()]{6,}$/.test(g.phone.trim())) {
+        return `Guardian ${i + 1} phone contains invalid characters.`;
       }
     }
     return null;

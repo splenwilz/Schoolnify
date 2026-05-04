@@ -5,21 +5,13 @@ import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Student } from "@/types/student";
+import { STATUS_LABEL } from "@/types/student";
 import { Avatar } from "./avatar";
 import { cn } from "@/lib/utils";
 
 interface StudentGroupedViewProps {
   students: Student[];
 }
-
-const STATUS_LABEL: Record<Student["status"], string> = {
-  active: "Active",
-  inactive: "Inactive",
-  suspended: "Suspended",
-  graduated: "Graduated",
-  transferred: "Transferred",
-  withdrawn: "Withdrawn",
-};
 
 const STATUS_DOT: Record<Student["status"], string> = {
   active: "bg-[#10B981]",
@@ -75,12 +67,18 @@ export function StudentGroupedView({ students }: StudentGroupedViewProps) {
 function GradeGroup({ grade, students }: { grade: string; students: Student[] }) {
   const [open, setOpen] = useState(true);
 
-  const feeStats = {
-    paid: students.filter((s) => s.feeStatus === "paid").length,
-    pending: students.filter((s) => s.feeStatus === "pending").length,
-    overdue: students.filter((s) => s.feeStatus === "overdue").length,
-    unknown: students.filter((s) => s.feeStatus === "unknown").length,
-  };
+  // Single-pass tally so we don't traverse `students` four times.
+  const feeStats = students.reduce(
+    (acc, s) => {
+      const bucket =
+        s.feeStatus === "paid" || s.feeStatus === "pending" || s.feeStatus === "overdue"
+          ? s.feeStatus
+          : "unknown";
+      acc[bucket] += 1;
+      return acc;
+    },
+    { paid: 0, pending: 0, overdue: 0, unknown: 0 }
+  );
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04)]">

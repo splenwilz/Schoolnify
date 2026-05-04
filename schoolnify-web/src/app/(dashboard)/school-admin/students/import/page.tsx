@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -38,8 +38,20 @@ export default function StudentImportPage() {
   // Step 1: Upload
   const [parsedCSV, setParsedCSV] = useState<ParsedCSV | null>(null);
 
-  // Step 2: Mapping
+  // Step 2: Mapping. We also track which columns the user manually changed
+  // so a re-upload of the same headers preserves their custom mapping instead
+  // of overwriting it with a fresh fuzzy match.
   const [mapping, setMapping] = useState<Record<string, string>>({});
+  const userEditedColumnsRef = useRef<Set<string>>(new Set());
+
+  const handleMappingChange = (next: Record<string, string>) => {
+    // Record any column whose value differs from the current mapping — those
+    // are user-driven edits we want to keep on subsequent re-uploads.
+    for (const [col, value] of Object.entries(next)) {
+      if (mapping[col] !== value) userEditedColumnsRef.current.add(col);
+    }
+    setMapping(next);
+  };
 
   // Step 3: Validation
   const [validationResult, setValidationResult] = useState<BatchValidationResult | null>(null);
@@ -64,12 +76,25 @@ export default function StudentImportPage() {
     importMutation.reset();
 
     setParsedCSV(csv);
-    const autoMap: Record<string, string> = {};
+
+    // Auto-map only the columns the user hasn't already customized. If headers
+    // changed entirely (different file), every column is "new" so all get
+    // auto-mapped.
+    const edited = userEditedColumnsRef.current;
+    const next: Record<string, string> = {};
     for (const header of csv.headers) {
+      if (edited.has(header) && mapping[header]) {
+        next[header] = mapping[header];
+        continue;
+      }
       const match = fuzzyMatchField(header, fields);
-      autoMap[header] = match?.key ?? "_ignore";
+      next[header] = match?.key ?? "_ignore";
     }
-    setMapping(autoMap);
+    setMapping(next);
+    // Drop edits for columns that no longer exist.
+    for (const col of [...edited]) {
+      if (!csv.headers.includes(col)) edited.delete(col);
+    }
     setStep(1);
   };
 
@@ -113,8 +138,12 @@ export default function StudentImportPage() {
     <div className="max-w-[960px] mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/school-admin/students" className="p-2 rounded-lg hover:bg-[var(--background-secondary)] transition-colors">
-          <ArrowLeft className="w-5 h-5 text-[var(--muted)]" />
+        <Link
+          href="/school-admin/students"
+          aria-label="Back to students"
+          className="p-2 rounded-lg hover:bg-[var(--background-secondary)] transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5 text-[var(--muted)]" aria-hidden="true" />
         </Link>
         <div>
           <h1 className="text-xl font-semibold text-[var(--foreground)]">Import Students</h1>
@@ -170,7 +199,7 @@ export default function StudentImportPage() {
               sampleRows={parsedCSV.rows.slice(0, 3)}
               fields={fields}
               mapping={mapping}
-              onMappingChange={setMapping}
+              onMappingChange={handleMappingChange}
               onBack={() => setStep(0)}
               onNext={() => setStep(2)}
             />
@@ -181,6 +210,7 @@ export default function StudentImportPage() {
               mapping={mapping}
               fields={fields}
               gradeLevels={gradeLevels}
+              dateFormat={dateFormat}
               validationResult={validationResult}
               onValidated={setValidationResult}
               onBack={() => setStep(1)}

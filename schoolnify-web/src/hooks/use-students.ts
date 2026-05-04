@@ -174,6 +174,47 @@ export function useStudents(filters: StudentListFilters = {}) {
 }
 
 /**
+ * Fetch every student across all pages and return them as a single list.
+ *
+ * Use this for surfaces that genuinely need the full set: the bulk promotion
+ * workflow, demographic metrics, and the cumulative enrollment chart. Walking
+ * pages avoids the silent truncation that `useStudents({ page_size: 1000 })`
+ * causes once a school grows past 1000 enrolled.
+ *
+ * Pages are fetched sequentially in a single queryFn, so React Query caches
+ * the merged result under one key. Filters are passed through unchanged.
+ */
+export function useAllStudents(filters: Omit<StudentListFilters, "page" | "page_size"> = {}) {
+  const PAGE_SIZE = 500;
+  return useQuery({
+    queryKey: ["students", "list-all", filters] as const,
+    queryFn: async () => {
+      const first = await studentsApi.list({ ...filters, page: 1, page_size: PAGE_SIZE });
+      const totalPages = first.pagination?.total_pages ?? 1;
+      if (totalPages <= 1) return first;
+
+      const remainingPages = await Promise.all(
+        Array.from({ length: totalPages - 1 }, (_, i) =>
+          studentsApi.list({ ...filters, page: i + 2, page_size: PAGE_SIZE })
+        )
+      );
+      const merged: StudentListResponse = {
+        data: [...first.data, ...remainingPages.flatMap((r) => r.data)],
+        pagination: { ...first.pagination, page: 1, page_size: first.pagination.total },
+        summary: first.summary,
+      };
+      return merged;
+    },
+    staleTime: 30_000,
+    select: (response: StudentListResponse) => ({
+      students: response.data.map(apiToStudent),
+      pagination: response.pagination,
+      summary: response.summary,
+    }),
+  });
+}
+
+/**
  * Single student detail.
  *
  * Returns the mapped Student. The cache key includes the `include` set so
@@ -265,7 +306,10 @@ export function useImportStudents() {
     mutationFn: ({ file, mapping, skipInvalid }: { file: File; mapping: Record<string, string>; skipInvalid: boolean }) =>
       studentsApi.bulkImport(file, mapping, skipInvalid),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["students", "list"] });
+      // Bulk import touches a lot of state at once: paged lists, the all-students
+      // aggregate, and any cached detail entries that might collide. Invalidate
+      // the whole "students" prefix so every consumer refetches consistently.
+      qc.invalidateQueries({ queryKey: ["students"] });
     },
   });
 }

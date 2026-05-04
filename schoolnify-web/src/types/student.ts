@@ -65,6 +65,19 @@ export interface Student {
 }
 
 /**
+ * Human-readable label for each enrollment status. Centralised so the list,
+ * grouped view, profile header, and overview tab all render the same text.
+ */
+export const STATUS_LABEL: Record<Student["status"], string> = {
+  active: "Active",
+  inactive: "Inactive",
+  suspended: "Suspended",
+  graduated: "Graduated",
+  transferred: "Transferred",
+  withdrawn: "Withdrawn",
+};
+
+/**
  * Helper: full name from student
  */
 export function studentFullName(s: Student): string {

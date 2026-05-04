@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useStudents } from "@/hooks/use-students";
+import { useAllStudents } from "@/hooks/use-students";
 
 const periods = ["6M", "1Y", "ALL"] as const;
 type Period = (typeof periods)[number];
@@ -85,7 +85,9 @@ function buildPath(data: SeriesPoint[], width: number, height: number, padding: 
 
 export function EnrollmentChart() {
   const [activePeriod, setActivePeriod] = useState<Period>("1Y");
-  const { data } = useStudents({ page_size: 1000 });
+  // Unique per instance so multiple charts on the same page don't share / collide.
+  const gradientId = `enrollment-gradient-${useId()}`;
+  const { data } = useAllStudents();
   const students = useMemo(() => data?.students ?? [], [data?.students]);
 
   const series = useMemo(
@@ -164,14 +166,14 @@ export function EnrollmentChart() {
               preserveAspectRatio="none"
             >
               <defs>
-                <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#0891B2" stopOpacity="0.2" />
                   <stop offset="100%" stopColor="#0891B2" stopOpacity="0" />
                 </linearGradient>
               </defs>
               <motion.path
                 d={areaPath}
-                fill="url(#chartGradient)"
+                fill={`url(#${gradientId})`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.6 }}

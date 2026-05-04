@@ -61,8 +61,15 @@ function parseExcelFile(file: File): Promise<ParsedCSV> {
         }
         const sheet = workbook.Sheets[sheetName];
         // raw: false converts Excel-formatted dates (stored as serial numbers
-        // like 45000) into formatted strings, matching CSV semantics.
-        const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: false });
+        // like 45000) into formatted strings.
+        // dateNF forces ISO format regardless of the file's regional settings,
+        // so the downstream parseDate() in validators.ts handles the result
+        // deterministically (instead of locale-dependent "1/2/2026").
+        const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+          defval: "",
+          raw: false,
+          dateNF: "yyyy-mm-dd",
+        });
 
         if (jsonData.length === 0) {
           resolve({ headers: [], rows: [], rowCount: 0, errors: ["The sheet appears to be empty"] });

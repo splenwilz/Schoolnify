@@ -2,6 +2,8 @@
 
 import { DollarSign, Mail, Phone, MapPin, Heart, Users } from "lucide-react";
 import type { Student } from "@/types/student";
+import { STATUS_LABEL } from "@/types/student";
+import { cn } from "@/lib/utils";
 
 interface OverviewTabProps {
   student: Student;
@@ -15,15 +17,6 @@ function InfoField({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-const STATUS_LABEL: Record<Student["status"], string> = {
-  active: "Active",
-  inactive: "Inactive",
-  suspended: "Suspended",
-  graduated: "Graduated",
-  transferred: "Transferred",
-  withdrawn: "Withdrawn",
-};
 
 export function OverviewTab({ student }: OverviewTabProps) {
   return (
@@ -125,8 +118,8 @@ export function OverviewTab({ student }: OverviewTabProps) {
           </div>
         )}
 
-        {/* Fees -- placeholder until fees module ships */}
-        <FeesPlaceholder />
+        {/* Fees -- placeholder by default; full design renders when feeSummary is populated */}
+        <FeeSection />
       </div>
 
       {/* Right Column */}
@@ -152,16 +145,93 @@ function SummaryCard({ label, value, hint }: { label: string; value: string; hin
   );
 }
 
-function FeesPlaceholder() {
+/**
+ * Fee summary + payment history section.
+ *
+ * The fees module isn't wired yet, so `feeSummary` defaults to null and
+ * `payments` to []. The empty-state card renders by default. When the fees
+ * module ships, replace these defaults with real hook calls, e.g.:
+ *   const { data: feeSummary = null } = useStudentFeeSummary(studentId);
+ *   const { data: payments = [] } = useStudentPayments(studentId);
+ *
+ * Do NOT re-introduce the previous synthesized math (totalFee = 250000 derived
+ * from feeStatus). The full design lives in the populated branch below so it
+ * lights up as soon as real data arrives.
+ */
+
+interface FeeSummary {
+  totalFee: number;
+  paid: number;
+  balance: number;
+  /** ISO 4217 code or symbol; default Naira while fees module is Nigerian-first. */
+  currency: string;
+}
+
+interface PaymentEntry {
+  date: string;
+  amount: number;
+  method: string;
+  ref: string;
+}
+
+function FeeSection() {
+  // TODO: wire to real fee data once the fees module ships.
+  // The widening cast keeps the populated branch below type-checked even
+  // though the runtime default is `null` today.
+  const feeSummary = null as FeeSummary | null;
+  const payments: PaymentEntry[] = [];
+
+  if (feeSummary === null) {
+    return (
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+        <div className="flex items-center gap-2 mb-3">
+          <DollarSign className="w-4 h-4 text-[var(--muted)]" />
+          <h2 className="text-sm font-semibold text-[var(--foreground)]">Fees</h2>
+        </div>
+        <p className="text-[13px] text-[var(--muted)]">
+          Fee balance and payment history will appear here once the fees module is wired.
+        </p>
+      </div>
+    );
+  }
+
+  const symbol = feeSummary.currency === "NGN" ? "₦" : feeSummary.currency;
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-4">
         <DollarSign className="w-4 h-4 text-[var(--muted)]" />
         <h2 className="text-sm font-semibold text-[var(--foreground)]">Fees</h2>
       </div>
-      <p className="text-[13px] text-[var(--muted)]">
-        Fee balance and payment history will appear here once the fees module is wired.
-      </p>
+
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
+          <p className="text-[11px] text-[var(--muted)] mb-0.5">Total</p>
+          <p className="text-[14px] font-semibold text-[var(--foreground)] tabular-nums">{symbol}{feeSummary.totalFee.toLocaleString()}</p>
+        </div>
+        <div className="p-3 rounded-lg bg-[#10B981]/5">
+          <p className="text-[11px] text-[var(--muted)] mb-0.5">Paid</p>
+          <p className="text-[14px] font-semibold text-[#10B981] tabular-nums">{symbol}{feeSummary.paid.toLocaleString()}</p>
+        </div>
+        <div className={cn("p-3 rounded-lg", feeSummary.balance > 0 ? "bg-red-500/5" : "bg-[var(--background-secondary)]")}>
+          <p className="text-[11px] text-[var(--muted)] mb-0.5">Balance</p>
+          <p className={cn("text-[14px] font-semibold tabular-nums", feeSummary.balance > 0 ? "text-red-500" : "text-[var(--foreground)]")}>{symbol}{feeSummary.balance.toLocaleString()}</p>
+        </div>
+      </div>
+
+      {payments.length > 0 && (
+        <div>
+          <p className="text-[11px] font-medium text-[var(--muted)] uppercase tracking-wider mb-2">History</p>
+          {payments.map((p) => (
+            <div key={p.ref} className="flex items-center justify-between text-[12px] py-1.5">
+              <div>
+                <span className="text-[var(--foreground)] font-medium">{symbol}{p.amount.toLocaleString()}</span>{" "}
+                <span className="text-[var(--muted)]">{p.method}</span>
+              </div>
+              <span className="text-[var(--muted)]">{new Date(p.date).toLocaleDateString("en-NG", { day: "numeric", month: "short" })}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

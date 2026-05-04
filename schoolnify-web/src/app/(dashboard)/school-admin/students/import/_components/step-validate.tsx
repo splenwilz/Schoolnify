@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { CheckCircle2, AlertCircle, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import type { StudentField } from "../_constants/student-fields";
-import { validateAllRows, type BatchValidationResult } from "../_utils/validators";
+import { validateAllRows, type BatchValidationResult, type DateFormat } from "../_utils/validators";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
@@ -13,22 +13,24 @@ interface StepValidateProps {
   mapping: Record<string, string>;
   fields: StudentField[];
   gradeLevels: string[];
+  dateFormat: DateFormat | string;
   validationResult: BatchValidationResult | null;
   onValidated: (result: BatchValidationResult) => void;
   onBack: () => void;
   onNext: () => void;
 }
 
-export function StepValidate({ rows, mapping, fields, gradeLevels, validationResult, onValidated, onBack, onNext }: StepValidateProps) {
+export function StepValidate({ rows, mapping, fields, gradeLevels, dateFormat, validationResult, onValidated, onBack, onNext }: StepValidateProps) {
+  const fmt = dateFormat as DateFormat;
   const [showErrorsOnly, setShowErrorsOnly] = useState(false);
   const [editableRows, setEditableRows] = useState<Record<string, string>[]>([...rows]);
   const [editingCell, setEditingCell] = useState<{ row: number; field: string } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   const runValidation = useCallback(() => {
-    const result = validateAllRows(editableRows, mapping, fields, gradeLevels);
+    const result = validateAllRows(editableRows, mapping, fields, gradeLevels, fmt);
     onValidated(result);
-  }, [editableRows, mapping, fields, gradeLevels, onValidated]);
+  }, [editableRows, mapping, fields, gradeLevels, fmt, onValidated]);
 
   useEffect(() => {
     if (!validationResult) runValidation();
@@ -70,7 +72,7 @@ export function StepValidate({ rows, mapping, fields, gradeLevels, validationRes
     updated[rowIndex] = { ...updated[rowIndex], [csvCol]: newValue };
     setEditableRows(updated);
     setEditingCell(null);
-    const result = validateAllRows(updated, mapping, fields, gradeLevels);
+    const result = validateAllRows(updated, mapping, fields, gradeLevels, fmt);
     onValidated(result);
   };
 

@@ -3,10 +3,10 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useStudents } from "@/hooks/use-students";
+import { useAllStudents } from "@/hooks/use-students";
 
 export function MetricsGrid() {
-  const { data } = useStudents({ page_size: 1000 });
+  const { data } = useAllStudents();
   const students = useMemo(() => data?.students ?? [], [data?.students]);
 
   const metrics = useMemo(() => {

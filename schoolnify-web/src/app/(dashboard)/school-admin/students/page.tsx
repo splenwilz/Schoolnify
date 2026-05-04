@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { primaryGuardian, type Student } from "@/types/student";
 import { cn } from "@/lib/utils";
-import { useStudents, exportStudentsCsv } from "@/hooks/use-students";
+import { useAllStudents, exportStudentsCsv } from "@/hooks/use-students";
 import { escapeCsvCell } from "./_utils/csv";
 import { StatCard } from "./_components/stat-card";
 import { EnrollmentChart } from "./_components/enrollment-chart";
@@ -41,9 +41,11 @@ export default function StudentsPage() {
   const [selectedGrade, setSelectedGrade] = useState("");
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [recentViews] = useState<string[]>([]);
+  // TODO: source from `useRecentlyViewedStudents()` (localStorage) once implemented.
+  // The Recently viewed section below renders only when this is non-empty.
+  const [recentViewIds] = useState<string[]>([]);
 
-  const { data, isLoading, error } = useStudents({ page_size: 1000 });
+  const { data, isLoading, error } = useAllStudents();
   const students: Student[] = useMemo(() => data?.students ?? [], [data?.students]);
   const apiSummary = data?.summary;
 
@@ -146,15 +148,15 @@ export default function StudentsPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Export strategy: always prefer the backend export so the column schema is
+  // consistent regardless of filters. Selected-row exports and offline failure
+  // fall back to building the CSV locally from the same Student shape.
   const handleExportAll = async () => {
-    if (selectedGrade || searchQuery) {
-      exportLocally(filteredStudents);
-      return;
-    }
     try {
-      await exportStudentsCsv({});
+      const filters = selectedGrade ? { grade_level: selectedGrade } : {};
+      await exportStudentsCsv(filters);
     } catch {
-      exportLocally(students);
+      exportLocally(filteredStudents.length > 0 ? filteredStudents : students);
     }
   };
   const handleExportSelected = () => {
@@ -162,7 +164,9 @@ export default function StudentsPage() {
     exportLocally(selected);
   };
 
-  const recentStudents = recentViews.map((id) => students.find((s) => s.id === id)).filter(Boolean);
+  const recentStudents = recentViewIds
+    .map((id) => students.find((s) => s.id === id))
+    .filter((s): s is Student => !!s);
 
   if (isLoading) {
     return (
@@ -312,7 +316,9 @@ export default function StudentsPage() {
               </div>
             </div>
 
-            {/* Recently viewed */}
+            {/* Recently viewed -- renders only when recentViewIds is populated.
+                The empty default keeps the section hidden until the localStorage
+                tracker is wired (see TODO above on `recentViewIds` state). */}
             {recentStudents.length > 0 && (
               <div>
                 <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wider mb-3 flex items-center gap-1.5">
@@ -321,13 +327,12 @@ export default function StudentsPage() {
                 </h2>
                 <div className="space-y-1">
                   {recentStudents.map((student) => {
-                    if (!student) return null;
                     const guardian = primaryGuardian(student);
                     return (
                       <Link
                         key={student.id}
                         href={`/school-admin/students/${student.id}`}
-                        className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:border-[var(--muted)]/30 hover:bg-[var(--background-secondary)] transition-all"
+                        className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:border-[var(--muted)]/30 hover:bg-[var(--background-secondary)] transition-all group"
                       >
                         <Avatar firstName={student.firstName} lastName={student.lastName} avatar={student.avatar} size="sm" />
                         <div className="flex-1 min-w-0">
@@ -338,9 +343,15 @@ export default function StudentsPage() {
                         </div>
                         <div className="hidden sm:flex items-center gap-3">
                           {guardian && <span className="text-[12px] text-[var(--muted)]">{guardian.firstName} {guardian.lastName}</span>}
-                          <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded",
-                            student.feeStatus === "paid" ? "bg-[#10B981]/10 text-[#10B981]" : student.feeStatus === "pending" ? "bg-amber-500/10 text-amber-600" : "bg-red-500/10 text-red-500"
-                          )}>{student.feeStatus}</span>
+                          <span className={cn(
+                            "text-[11px] font-medium px-2 py-0.5 rounded",
+                            student.feeStatus === "paid" ? "bg-[#10B981]/10 text-[#10B981]"
+                              : student.feeStatus === "pending" ? "bg-amber-500/10 text-amber-600"
+                                : student.feeStatus === "overdue" ? "bg-red-500/10 text-red-500"
+                                  : "bg-[var(--background-secondary)] text-[var(--muted)]"
+                          )}>
+                            {student.feeStatus === "unknown" ? "—" : student.feeStatus}
+                          </span>
                         </div>
                         <ArrowRight className="w-4 h-4 text-[var(--muted)] opacity-0 group-hover:opacity-100" />
                       </Link>
