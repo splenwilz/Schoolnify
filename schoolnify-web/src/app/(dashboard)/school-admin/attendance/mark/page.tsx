@@ -33,7 +33,7 @@ function generateRoster(
   const parsed = parseGradeCode(className);
   const gradeMatch = parsed ? `${parsed.level}${parsed.section}` : className;
   const matched = students
-    .filter((s) => s.grade === gradeMatch && s.status === "active")
+    .filter((s) => s.gradeLevel === gradeMatch && s.status === "active")
     .map((s) => ({
       id: s.id,
       name: `${s.firstName} ${s.lastName}`,

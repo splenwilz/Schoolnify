@@ -10,6 +10,7 @@ export interface SetupIdentitySection {
   motto: string;
   founded_year: string;
   accreditation_number: string;
+  admission_number_prefix?: string;
 }
 
 export interface SetupBrandingSection {

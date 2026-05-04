@@ -50,7 +50,7 @@ function generateClassRoster(
 
   // Match real students from demo data
   const matched: RosterStudent[] = students
-    .filter((s) => s.grade === gradeMatch && s.status === "active")
+    .filter((s) => s.gradeLevel === gradeMatch && s.status === "active")
     .map((s) => ({
       id: s.id,
       name: `${s.firstName} ${s.lastName}`,

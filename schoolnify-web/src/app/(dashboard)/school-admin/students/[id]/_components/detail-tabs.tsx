@@ -8,23 +8,7 @@ import { OverviewTab } from "./overview-tab";
 import { AcademicsTab } from "./academics-tab";
 import { AttendanceTab } from "./attendance-tab";
 import { ActivityTab } from "./activity-tab";
-
-interface Student {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  grade: string;
-  gender: string;
-  dateOfBirth: string;
-  enrollmentDate: string;
-  parentName: string;
-  parentPhone: string;
-  status: "active" | "inactive";
-  gpa: number;
-  attendanceRate: number;
-  feeStatus: "paid" | "pending" | "overdue";
-}
+import type { Student } from "@/types/student";
 
 const tabs = [
   { id: "overview", label: "Overview", icon: User },

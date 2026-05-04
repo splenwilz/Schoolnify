@@ -33,6 +33,7 @@ function apiToSetupData(api: SetupApiData): Partial<SetupData> {
     result.motto = api.identity.motto ?? "";
     result.foundedYear = api.identity.founded_year ?? "";
     result.accreditationNumber = api.identity.accreditation_number ?? "";
+    result.admissionNumberPrefix = api.identity.admission_number_prefix ?? "";
   }
 
   if (api.branding) {
@@ -206,6 +207,7 @@ const SECTION_EXTRACTORS: Record<string, SectionExtractor> = {
     motto: d.motto,
     founded_year: d.foundedYear,
     accreditation_number: d.accreditationNumber,
+    admission_number_prefix: d.admissionNumberPrefix,
   }),
   branding: (d) => ({
     logo_url: d.logoUrl,

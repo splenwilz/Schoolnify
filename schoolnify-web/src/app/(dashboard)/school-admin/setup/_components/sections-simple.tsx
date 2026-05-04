@@ -50,6 +50,9 @@ export function IdentitySection({ data, update, expanded, toggleSection }: Secti
       <Field label="Accreditation or Registration ID" description="Official registration or accreditation number, if applicable">
         <TextInput value={data.accreditationNumber} onChange={(v) => update("accreditationNumber", v)} placeholder="e.g. SCH/2024/001" />
       </Field>
+      <Field label="Admission Number Prefix" description="Used to auto-generate admission numbers (e.g. INF produces INF/2026/001). Leave blank to use the school's slug.">
+        <TextInput value={data.admissionNumberPrefix} onChange={(v) => update("admissionNumberPrefix", v.toUpperCase())} placeholder="e.g. INF" />
+      </Field>
     </SectionCard>
   );
 }

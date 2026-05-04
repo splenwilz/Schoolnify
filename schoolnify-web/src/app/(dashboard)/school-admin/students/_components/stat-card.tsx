@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { type LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
+import { type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface StatCardProps {
@@ -15,14 +15,19 @@ interface StatCardProps {
   index: number;
 }
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 16 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.4, delay: i * 0.08, ease: "easeOut" as const },
-  }),
-};
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * Return inline styles for the icon tint, defending against non-hex colors.
+ * The 10% alpha background is built by appending `1A` to a 6-digit hex; if the
+ * caller passes anything else we fall back to neutral CSS variables.
+ */
+function tintStyle(color: string): React.CSSProperties {
+  if (HEX_RE.test(color)) {
+    return { backgroundColor: `${color}1A`, color };
+  }
+  return { backgroundColor: "var(--background-secondary)", color: "var(--muted)" };
+}
 
 export function StatCard({
   icon: Icon,
@@ -36,44 +41,39 @@ export function StatCard({
 }: StatCardProps) {
   return (
     <motion.div
-      custom={index}
-      variants={cardVariants}
-      initial="hidden"
-      animate="visible"
-      className="rounded-2xl bg-[var(--card)] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] transition-shadow"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.06 }}
+      className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]"
     >
-      <div className="flex items-center justify-between mb-4">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center"
-          style={{ background: `${color}12` }}
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm text-[var(--muted)]">{label}</span>
+        <span
+          aria-hidden="true"
+          className="inline-flex items-center justify-center w-7 h-7 rounded-md"
+          style={tintStyle(color)}
         >
-          <Icon className="w-5 h-5" style={{ color }} />
-        </div>
+          <Icon className="w-4 h-4" />
+        </span>
+      </div>
+      <div className="text-2xl font-semibold text-[var(--foreground)] tabular-nums">
+        {value}
+      </div>
+      <div className="flex items-center gap-2 mt-1">
         {change && (
           <span
             className={cn(
-              "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-md",
-              changeUp
-                ? "bg-[#10B981]/10 text-[#10B981]"
-                : "bg-[#EF4444]/10 text-[#EF4444]"
+              "text-xs font-medium",
+              changeUp === true && "text-[#10B981]",
+              changeUp === false && "text-[#EF4444]",
+              changeUp === undefined && "text-[var(--muted)]"
             )}
           >
-            {changeUp ? (
-              <TrendingUp className="w-3 h-3" />
-            ) : (
-              <TrendingDown className="w-3 h-3" />
-            )}
             {change}
           </span>
         )}
+        {subtitle && <span className="text-xs text-[var(--muted)]">{subtitle}</span>}
       </div>
-      <p className="text-[13px] text-[var(--muted)] font-medium">{label}</p>
-      <p className="text-[28px] font-bold text-[var(--foreground)] tabular-nums leading-tight mt-1">
-        {value}
-      </p>
-      {subtitle && (
-        <p className="text-[11px] text-[var(--muted)] mt-1">{subtitle}</p>
-      )}
     </motion.div>
   );
 }
