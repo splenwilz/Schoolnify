@@ -118,6 +118,23 @@ html {
   background: var(--card-hover);
 }
 
+/* Stripe-style surface: hairline border + soft layered shadow, restrained radius.
+ * Use as the base for every card in the dashboard so chrome stays consistent. */
+.surface {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 1px rgba(15, 23, 42, 0.02),
+    0 2px 4px rgba(15, 23, 42, 0.03);
+}
+
+.dark .surface {
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
 /* Button styles for theme */
 .btn-primary {
   background: var(--brand);

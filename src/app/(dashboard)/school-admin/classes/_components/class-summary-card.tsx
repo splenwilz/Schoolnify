@@ -1,123 +1,88 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
 import { classes } from "@/lib/demo-data";
+import { classShortCode } from "@/types/class";
 
-const totalStudents = classes.reduce((sum, c) => sum + c.students, 0);
-const avgAttendance = (
-  classes.reduce((sum, c) => sum + c.attendanceRate, 0) / classes.length
-).toFixed(1);
-const bestClass = classes.reduce((best, c) =>
+// Only classes with real metrics count. Draft/empty classes (attendance 0,
+// GPA 0) aren't ranked.
+const plotted = classes.filter(
+  (c) => c.averageAttendance != null && c.averageGrade != null
+);
+
+const bestClass = plotted.reduce((best, c) =>
   c.attendanceRate > best.attendanceRate ? c : best
 );
-const topGPA = classes.reduce((best, c) =>
+const topGPA = plotted.reduce((best, c) =>
   c.avgGrade > best.avgGrade ? c : best
 );
 
-// Normalize classes into scatter positions (attendance vs GPA)
-const minAtt = Math.min(...classes.map((c) => c.attendanceRate));
-const maxAtt = Math.max(...classes.map((c) => c.attendanceRate));
-const minGPA = Math.min(...classes.map((c) => c.avgGrade));
-const maxGPA = Math.max(...classes.map((c) => c.avgGrade));
+// Composite rank: normalize attendance and GPA across the cohort and sum, so a
+// class that's weak on both floats to the top of the "needs attention" list.
+const attVals = plotted.map((c) => c.attendanceRate);
+const gpaVals = plotted.map((c) => c.avgGrade);
+const attMin = Math.min(...attVals);
+const attMax = Math.max(...attVals);
+const gpaMin = Math.min(...gpaVals);
+const gpaMax = Math.max(...gpaVals);
+function unit(v: number, min: number, max: number): number {
+  return max === min ? 0.5 : (v - min) / (max - min);
+}
 
-const dots = classes.map((c) => ({
-  id: c.id,
-  name: c.name.replace("Grade ", ""),
-  x: ((c.attendanceRate - minAtt) / (maxAtt - minAtt)) * 100,
-  y: 100 - ((c.avgGrade - minGPA) / (maxGPA - minGPA)) * 100,
-  size: 4 + (c.students / 35) * 6,
-  attendance: c.attendanceRate,
-  gpa: c.avgGrade,
-}));
+const watchList = [...plotted]
+  .map((c) => ({
+    c,
+    score: unit(c.attendanceRate, attMin, attMax) + unit(c.avgGrade, gpaMin, gpaMax),
+  }))
+  .sort((a, b) => a.score - b.score)
+  .slice(0, 4)
+  .map(({ c }) => c);
 
 export function ClassSummaryCard() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.1 }}
-      className="rounded-2xl h-full shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden"
-      style={{
-        background:
-          "linear-gradient(135deg, rgba(8,145,178,0.06) 0%, rgba(8,145,178,0.02) 60%, var(--card) 100%)",
-      }}
-    >
+    <div className="surface h-full overflow-hidden">
       <div className="p-6 flex flex-col h-full">
         {/* Title */}
-        <div className="mb-3">
+        <div className="mb-4">
           <p className="text-[15px] font-semibold text-[var(--foreground)]">
             Academic Overview
           </p>
           <p className="text-[12px] text-[var(--muted)] mt-0.5">
-            Your classes are performing well this term
+            Classes that need a closer look this term
           </p>
         </div>
 
-        {/* Scatter visualization */}
-        <div className="flex-1 relative min-h-[120px]">
-          {/* Axis labels */}
-          <span className="absolute -left-0.5 top-0 text-[9px] text-[var(--muted)]">
-            GPA
-          </span>
-          <span className="absolute right-0 bottom-[-14px] text-[9px] text-[var(--muted)]">
-            Attendance
-          </span>
-
-          {/* Grid lines */}
-          <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-            {[25, 50, 75].map((pct) => (
-              <line
-                key={`h-${pct}`}
-                x1="0"
-                y1={`${pct}%`}
-                x2="100%"
-                y2={`${pct}%`}
-                stroke="var(--border)"
-                strokeWidth="1"
-                opacity="0.3"
-                strokeDasharray="4 4"
-              />
-            ))}
-            {[25, 50, 75].map((pct) => (
-              <line
-                key={`v-${pct}`}
-                x1={`${pct}%`}
-                y1="0"
-                x2={`${pct}%`}
-                y2="100%"
-                stroke="var(--border)"
-                strokeWidth="1"
-                opacity="0.3"
-                strokeDasharray="4 4"
-              />
-            ))}
-          </svg>
-
-          {/* Dots */}
-          {dots.map((dot, i) => (
-            <motion.div
-              key={dot.id}
-              className="absolute rounded-full bg-[#0891B2] flex items-center justify-center"
-              style={{
-                left: `${5 + dot.x * 0.9}%`,
-                top: `${5 + dot.y * 0.9}%`,
-                width: `${dot.size}px`,
-                height: `${dot.size}px`,
-                opacity: 0.4 + (dot.attendance / 100) * 0.6,
-              }}
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ duration: 0.3, delay: 0.3 + i * 0.04, type: "spring" }}
-              title={`${dot.name}: ${dot.attendance}% att, ${dot.gpa} GPA`}
-            />
+        {/* Needs-attention ranking */}
+        <div className="flex-1 flex flex-col gap-1.5">
+          {watchList.map((c) => (
+            <div
+              key={c.id}
+              className="flex items-center gap-3 py-1.5 rounded-lg"
+            >
+              <span className="inline-flex items-center justify-center min-w-[34px] h-6 px-1.5 rounded-md bg-[var(--background-elevated)] border border-[var(--border)] text-[var(--foreground-secondary)] text-[10px] font-semibold flex-shrink-0">
+                {classShortCode(c)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-medium text-[var(--foreground)] truncate">
+                  {c.name}
+                </p>
+                <p className="text-[10px] text-[var(--muted)]">
+                  {c.attendanceRate}% attendance
+                </p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-[13px] font-semibold text-[var(--foreground)] tabular-nums leading-tight">
+                  {c.avgGrade.toFixed(2)}
+                </p>
+                <p className="text-[9px] text-[var(--muted)] font-medium">GPA</p>
+              </div>
+            </div>
           ))}
         </div>
 
         {/* Bottom key metrics */}
         <div className="flex items-center gap-4 mt-4 pt-4 border-t border-[var(--border)]">
           <div className="flex-1">
-            <p className="text-[20px] font-bold text-[#0891B2] tabular-nums leading-tight">
+            <p className="text-[20px] font-semibold text-[var(--foreground)] tabular-nums leading-tight">
               {bestClass.attendanceRate}%
             </p>
             <p className="text-[10px] text-[var(--muted)] font-medium mt-0.5">
@@ -126,7 +91,7 @@ export function ClassSummaryCard() {
           </div>
           <div className="w-px h-8 bg-[var(--border)]" />
           <div className="flex-1">
-            <p className="text-[20px] font-bold text-[#0891B2] tabular-nums leading-tight">
+            <p className="text-[20px] font-semibold text-[var(--foreground)] tabular-nums leading-tight">
               {topGPA.avgGrade.toFixed(2)}
             </p>
             <p className="text-[10px] text-[var(--muted)] font-medium mt-0.5">
@@ -135,6 +100,6 @@ export function ClassSummaryCard() {
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

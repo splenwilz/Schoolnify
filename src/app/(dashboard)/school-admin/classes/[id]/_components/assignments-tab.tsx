@@ -1,14 +1,27 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { BookOpen, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const recentAssignments = [
-  { id: 1, title: "Chapter 5 Quiz", dueDate: "Jan 10, 2026", status: "upcoming", submissions: 0, total: 28 },
-  { id: 2, title: "Homework #12", dueDate: "Jan 8, 2026", status: "active", submissions: 18, total: 28 },
-  { id: 3, title: "Midterm Exam", dueDate: "Jan 3, 2026", status: "graded", submissions: 28, total: 28 },
-  { id: 4, title: "Project Proposal", dueDate: "Dec 20, 2025", status: "graded", submissions: 27, total: 28 },
-];
+/**
+ * Assignments tab.
+ *
+ * The assignments module isn't wired yet, so the source defaults to empty and
+ * the honest empty state renders. The full table design is preserved below the
+ * guard -- when the backend ships, replace the default with
+ * `useClassAssignments(classId)` and it lights up. (Same pattern as the
+ * student-profile tabs.)
+ */
+
+interface Assignment {
+  id: number | string;
+  title: string;
+  dueDate: string;
+  status: "upcoming" | "active" | "graded";
+  submissions: number;
+  total: number;
+}
 
 const statusStyles: Record<string, string> = {
   upcoming: "bg-[#F59E0B]/10 text-[#F59E0B]",
@@ -17,6 +30,35 @@ const statusStyles: Record<string, string> = {
 };
 
 export function AssignmentsTab() {
+  // TODO: replace with `useClassAssignments(classId)` once the module ships.
+  const recentAssignments: Assignment[] = [];
+
+  if (recentAssignments.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="rounded-2xl bg-[var(--card)] p-10 shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col items-center justify-center text-center"
+      >
+        <div className="w-12 h-12 rounded-full bg-[var(--background-secondary)] flex items-center justify-center mb-3">
+          <BookOpen className="w-5 h-5 text-[var(--muted)]" />
+        </div>
+        <p className="text-[15px] font-medium text-[var(--foreground)]">No assignments yet</p>
+        <p className="text-[13px] text-[var(--muted)] mt-1 max-w-md">
+          Assignments and submission tracking will appear here once the assignments module is wired.
+        </p>
+        <button
+          type="button"
+          className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0891B2] rounded-lg hover:bg-[#0E7490] transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Create assignment
+        </button>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}

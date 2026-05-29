@@ -21,8 +21,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSchoolConfig } from "@/lib/school-config-context";
-import { parseGradeCode } from "@/lib/class-naming";
+import { classShortCode } from "@/types/class";
 
 interface ClassItem {
   id: string;
@@ -34,6 +33,9 @@ interface ClassItem {
   avgGrade: number;
   attendanceRate: number;
   status: string;
+  arm?: string;
+  gradeLevel?: string;
+  stream?: string | null;
 }
 
 interface Tab {
@@ -96,7 +98,6 @@ export function ClassTable({
   onTeacherChange,
 }: ClassTableProps) {
   const router = useRouter();
-  const { fmtClass, fmtGrade } = useSchoolConfig();
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -151,7 +152,7 @@ export function ClassTable({
   const allSelected = selectedClasses.length === classes.length && classes.length > 0;
 
   return (
-    <div className="rounded-2xl bg-[var(--card)] shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+    <div className="surface overflow-hidden">
       {/* Table Header with Integrated Filters */}
       <div className="px-6 pt-5 pb-4">
         <div className="flex items-center justify-between mb-4">
@@ -239,10 +240,10 @@ export function ClassTable({
                 !selectedGrade && "text-[var(--muted)]"
               )}
             >
-              <option value="">All Grades</option>
+              <option value="">All Levels</option>
               {grades.map((grade) => (
                 <option key={grade} value={grade}>
-                  {fmtGrade(grade)}
+                  {grade}
                 </option>
               ))}
             </select>
@@ -339,23 +340,19 @@ export function ClassTable({
             </tr>
           </thead>
           <tbody>
-            {paginatedClasses.map((cls, index) => {
+            {paginatedClasses.map((cls) => {
               const isSelected = selectedClasses.includes(cls.id);
-              const parsed = parseGradeCode(cls.name);
-              const gradeLabel = parsed ? `${parsed.level}${parsed.section}` : cls.name;
+              const gradeLabel = classShortCode(cls);
 
               return (
-                <motion.tr
+                <tr
                   key={cls.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.15, delay: index * 0.02 }}
                   className={cn(
                     "group transition-colors",
                     "border-b border-[var(--border)]/50 last:border-b-0",
                     isSelected
-                      ? "bg-[var(--background-secondary)]/60"
-                      : "hover:bg-[var(--background-secondary)]/30"
+                      ? "bg-[var(--background-secondary)]"
+                      : "hover:bg-[var(--background-secondary)]/50"
                   )}
                 >
                   {/* Checkbox */}
@@ -383,11 +380,11 @@ export function ClassTable({
                       href={`/school-admin/classes/${cls.id}`}
                       className="flex items-center gap-3 group/link"
                     >
-                      <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#0891B2] to-[#22D3EE] flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
+                      <div className="w-9 h-9 rounded-lg bg-[var(--background-elevated)] border border-[var(--border)] flex items-center justify-center text-[var(--foreground-secondary)] text-[11px] font-semibold flex-shrink-0">
                         {gradeLabel}
                       </div>
-                      <span className="text-[13px] font-semibold text-[var(--foreground)] group-hover/link:text-[#0891B2] transition-colors">
-                        {fmtClass(cls.name)}
+                      <span className="text-[13px] font-semibold text-[var(--foreground)] group-hover/link:text-[var(--brand)] transition-colors">
+                        {cls.name}
                       </span>
                     </Link>
                   </td>
@@ -407,19 +404,17 @@ export function ClassTable({
                   {/* Attendance */}
                   <td className="px-4 py-4 text-right">
                     <div className="flex items-center justify-end gap-2.5">
-                      <div className="w-12 h-[5px] rounded-full bg-[var(--border)]/60 overflow-hidden">
-                        <motion.div
+                      <div className="w-12 h-[5px] rounded-full bg-[var(--background-elevated)] overflow-hidden">
+                        <div
                           className={cn(
                             "h-full rounded-full",
                             cls.attendanceRate >= 95
-                              ? "bg-[#10B981]"
+                              ? "bg-[var(--success)]"
                               : cls.attendanceRate >= 90
-                                ? "bg-[#F59E0B]"
-                                : "bg-[#EF4444]"
+                                ? "bg-[var(--warning)]"
+                                : "bg-[var(--error)]"
                           )}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${cls.attendanceRate}%` }}
-                          transition={{ duration: 0.5, delay: index * 0.03 }}
+                          style={{ width: `${cls.attendanceRate}%` }}
                         />
                       </div>
                       <span className="text-[13px] tabular-nums text-[var(--muted)] w-11 text-right">
@@ -512,7 +507,7 @@ export function ClassTable({
                       </AnimatePresence>
                     </div>
                   </td>
-                </motion.tr>
+                </tr>
               );
             })}
           </tbody>
