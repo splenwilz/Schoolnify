@@ -2,51 +2,47 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutGrid, Users, BookOpen, CalendarDays } from "lucide-react";
+import { LayoutGrid, Users, CalendarDays, BookOpen, BarChart3, CalendarClock, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { Class } from "@/types/class";
 import { OverviewTab } from "./overview-tab";
-import { StudentsTab } from "./students-tab";
-import { AssignmentsTab } from "./assignments-tab";
+import { RosterTab } from "./roster-tab";
 import { AttendanceTab } from "./attendance-tab";
-
-interface ClassData {
-  id: string;
-  name: string;
-  students: number;
-  teacher: string;
-  room: string;
-  schedule: string;
-  avgGrade: number;
-  attendanceRate: number;
-  status: string;
-}
+import { AssignmentsTab } from "./assignments-tab";
+import { GradebookTab } from "./gradebook-tab";
+import { ScheduleTab } from "./schedule-tab";
+import { SettingsTab } from "./settings-tab";
 
 const tabs = [
   { id: "overview", label: "Overview", icon: LayoutGrid },
-  { id: "students", label: "Students", icon: Users },
-  { id: "assignments", label: "Assignments", icon: BookOpen },
+  { id: "roster", label: "Roster", icon: Users },
   { id: "attendance", label: "Attendance", icon: CalendarDays },
-];
+  { id: "assignments", label: "Assignments", icon: BookOpen },
+  { id: "gradebook", label: "Gradebook", icon: BarChart3 },
+  { id: "schedule", label: "Schedule", icon: CalendarClock },
+  { id: "settings", label: "Settings", icon: Settings2 },
+] as const;
 
 interface DetailTabsProps {
-  classData: ClassData;
+  classData: Class;
 }
 
 export function DetailTabs({ classData }: DetailTabsProps) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["id"]>("overview");
 
   return (
     <div>
       {/* Tab Navigation */}
-      <div className="flex items-center gap-1 border-b border-[var(--border)] mb-6">
+      <div className="flex items-center gap-1 border-b border-[var(--border)] mb-6 overflow-x-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "relative px-4 py-3 text-sm font-medium flex items-center gap-2 transition-colors",
+                "relative px-4 py-3 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap",
                 activeTab === tab.id
                   ? "text-[var(--foreground)]"
                   : "text-[var(--muted)] hover:text-[var(--foreground)]"
@@ -76,9 +72,12 @@ export function DetailTabs({ classData }: DetailTabsProps) {
           transition={{ duration: 0.2 }}
         >
           {activeTab === "overview" && <OverviewTab classData={classData} />}
-          {activeTab === "students" && <StudentsTab />}
+          {activeTab === "roster" && <RosterTab classData={classData} />}
+          {activeTab === "attendance" && <AttendanceTab classData={classData} />}
           {activeTab === "assignments" && <AssignmentsTab />}
-          {activeTab === "attendance" && <AttendanceTab />}
+          {activeTab === "gradebook" && <GradebookTab classData={classData} />}
+          {activeTab === "schedule" && <ScheduleTab classData={classData} />}
+          {activeTab === "settings" && <SettingsTab classData={classData} />}
         </motion.div>
       </AnimatePresence>
     </div>

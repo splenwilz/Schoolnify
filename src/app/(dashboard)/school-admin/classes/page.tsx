@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Plus, FileDown } from "lucide-react";
 import { classes } from "@/lib/demo-data";
-import { useSchoolConfig } from "@/lib/school-config-context";
+import { classBand, compareClasses } from "@/types/class";
 import { ClassStatCards } from "./_components/class-stat-cards";
 import { ClassSummaryCard } from "./_components/class-summary-card";
 import { ClassGrowthChart } from "./_components/class-growth-chart";
@@ -15,35 +15,32 @@ import { TopPerformersCard } from "./_components/top-performers-card";
 import { ClassEventsCard } from "./_components/class-events-card";
 import { BulkActionsBar } from "./_components/bulk-actions-bar";
 import { EmptyState } from "./_components/empty-state";
+import { ClassCommandPalette } from "./_components/class-command-palette";
 
 const ITEMS_PER_PAGE = 10;
 
-function getGradeNumber(name: string): number {
-  return parseInt(name.match(/\d+/)?.[0] || "0");
-}
+// Filter bands derived from the school's own grade levels (country-agnostic):
+// Nursery/Primary/JSS/SSS, or Grade / Year / Form, etc.
+const bandsInOrder: string[] = (() => {
+  const ordered = [...classes].sort(compareClasses);
+  const seen: string[] = [];
+  for (const c of ordered) {
+    const b = classBand(c.gradeLevel);
+    if (!seen.includes(b)) seen.push(b);
+  }
+  return seen;
+})();
 
 const tabs = [
   { id: "all", label: "All", count: classes.length },
-  {
-    id: "lower",
-    label: "Lower Grades",
-    count: classes.filter((c) => {
-      const g = getGradeNumber(c.name);
-      return g >= 5 && g <= 8;
-    }).length,
-  },
-  {
-    id: "upper",
-    label: "Upper Grades",
-    count: classes.filter((c) => {
-      const g = getGradeNumber(c.name);
-      return g >= 9 && g <= 12;
-    }).length,
-  },
+  ...bandsInOrder.map((band) => ({
+    id: band,
+    label: band,
+    count: classes.filter((c) => classBand(c.gradeLevel) === band).length,
+  })),
 ];
 
 export default function ClassesPage() {
-  const { fmtClass } = useSchoolConfig();
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
@@ -51,11 +48,9 @@ export default function ClassesPage() {
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Distinct grade levels ("Primary 4", "JSS 1", ...) in conventional order.
   const grades = useMemo(
-    () =>
-      [...new Set(classes.map((c) => c.name.match(/\d+/)?.[0] || ""))]
-        .filter(Boolean)
-        .sort((a, b) => parseInt(a) - parseInt(b)),
+    () => [...new Set([...classes].sort(compareClasses).map((c) => c.gradeLevel))],
     []
   );
   const teachers = useMemo(
@@ -65,10 +60,7 @@ export default function ClassesPage() {
 
   const filteredClasses = useMemo(() => {
     return classes.filter((cls) => {
-      const gradeNum = getGradeNumber(cls.name);
-
-      if (activeTab === "lower" && (gradeNum < 5 || gradeNum > 8)) return false;
-      if (activeTab === "upper" && (gradeNum < 9 || gradeNum > 12)) return false;
+      if (activeTab !== "all" && classBand(cls.gradeLevel) !== activeTab) return false;
 
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -79,17 +71,20 @@ export default function ClassesPage() {
           return false;
       }
 
-      if (selectedGrade && !cls.name.includes(`Grade ${selectedGrade}`))
-        return false;
+      if (selectedGrade && cls.gradeLevel !== selectedGrade) return false;
       if (selectedTeacher && cls.teacher !== selectedTeacher) return false;
 
       return true;
     });
   }, [activeTab, searchQuery, selectedGrade, selectedTeacher]);
 
-  useEffect(() => {
+  // Reset to page 1 when filters change (render-time pattern, no effect).
+  const filterSignature = `${activeTab}|${searchQuery}|${selectedGrade}|${selectedTeacher}`;
+  const [prevFilterSignature, setPrevFilterSignature] = useState(filterSignature);
+  if (prevFilterSignature !== filterSignature) {
+    setPrevFilterSignature(filterSignature);
     setCurrentPage(1);
-  }, [activeTab, searchQuery, selectedGrade, selectedTeacher]);
+  }
 
   const handleSelectAll = () => {
     if (selectedClasses.length === filteredClasses.length) {
@@ -128,13 +123,13 @@ export default function ClassesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-[var(--foreground)] bg-[var(--card)] border border-[var(--border)] rounded-xl hover:bg-[var(--background-secondary)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all">
+          <button className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-[var(--foreground)] bg-[var(--card)] border border-[var(--border)] rounded-lg hover:bg-[var(--background-secondary)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all">
             <FileDown className="w-4 h-4" />
             Export
           </button>
           <Link
             href="/school-admin/classes/new"
-            className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-white bg-[#0891B2] rounded-xl hover:bg-[#0E7490] shadow-sm shadow-[#0891B2]/25 transition-all"
+            className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand-dark)] shadow-sm transition-all"
           >
             <Plus className="w-4 h-4" />
             Add class
@@ -201,6 +196,8 @@ export default function ClassesPage() {
         count={selectedClasses.length}
         onClear={() => setSelectedClasses([])}
       />
+
+      <ClassCommandPalette />
     </motion.div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const classData = {
@@ -95,12 +94,7 @@ export function ClassGrowthChart() {
   const isUp = currentValue >= prevValue;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.3 }}
-      className="rounded-2xl bg-[var(--card)] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] h-full"
-    >
+    <div className="surface p-6 h-full">
       <div className="flex items-start justify-between mb-1">
         <div>
           <p className="text-[13px] text-[var(--muted)] font-medium">Class Growth</p>
@@ -111,7 +105,9 @@ export function ClassGrowthChart() {
             <span
               className={cn(
                 "inline-flex items-center px-1.5 py-0.5 text-[11px] font-semibold rounded-md",
-                isUp ? "bg-[#10B981]/10 text-[#10B981]" : "bg-[#EF4444]/10 text-[#EF4444]"
+                isUp
+                  ? "bg-[var(--success)]/10 text-[var(--success)]"
+                  : "bg-[var(--error)]/10 text-[var(--error)]"
               )}
             >
               {isUp ? "+" : ""}
@@ -144,46 +140,24 @@ export function ClassGrowthChart() {
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full" preserveAspectRatio="none">
           <defs>
             <linearGradient id="classChartGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0891B2" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#0891B2" stopOpacity="0" />
+              <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.12" />
+              <stop offset="100%" stopColor="var(--brand)" stopOpacity="0" />
             </linearGradient>
           </defs>
-          <motion.path
-            d={areaPath}
-            fill="url(#classChartGradient)"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6 }}
-          />
-          <motion.path
+          <path d={areaPath} fill="url(#classChartGradient)" />
+          <path
             d={linePath}
             fill="none"
-            stroke="#0891B2"
+            stroke="var(--brand)"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 1 }}
-            transition={{ duration: 1, ease: "easeOut" }}
           />
-          <motion.circle
+          <circle
             cx={points[points.length - 1].x}
             cy={points[points.length - 1].y}
-            r="4"
-            fill="#0891B2"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.8 }}
-          />
-          <motion.circle
-            cx={points[points.length - 1].x}
-            cy={points[points.length - 1].y}
-            r="8"
-            fill="#0891B2"
-            opacity="0.2"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.8 }}
+            r="3.5"
+            fill="var(--brand)"
           />
         </svg>
       </div>
@@ -197,6 +171,6 @@ export function ClassGrowthChart() {
             </span>
           ))}
       </div>
-    </motion.div>
+    </div>
   );
 }

@@ -14,7 +14,7 @@ export function EmptyState({ onClearFilters }: EmptyStateProps) {
       <p className="text-sm text-[var(--muted)] mt-1">Try adjusting your search or filters</p>
       <button
         onClick={onClearFilters}
-        className="mt-4 text-sm text-[#0891B2] hover:underline"
+        className="mt-4 text-sm text-[var(--brand)] hover:underline"
       >
         Clear all filters
       </button>
