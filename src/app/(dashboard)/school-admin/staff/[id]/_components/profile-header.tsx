@@ -2,26 +2,15 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Edit3, Mail, ChevronRight, Phone, Calendar, DollarSign, BookOpen } from "lucide-react";
+import { Edit3, Mail, ChevronRight, Phone, Calendar, Briefcase, BookOpen } from "lucide-react";
 import { Avatar } from "../../../students/_components/avatar";
 import { cn } from "@/lib/utils";
-
-interface StaffMember {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  role: string;
-  department: string;
-  status: "active" | "on_leave";
-  classesAssigned: number;
-  joinDate: string;
-  salary: number;
-}
+import type { Staff } from "@/types/staff";
+import { EMPLOYMENT_TYPE_LABEL } from "@/types/staff";
+import { staffAssignments } from "@/lib/demo-data";
 
 interface ProfileHeaderProps {
-  staff: StaffMember;
+  staff: Staff;
 }
 
 const deptColors: Record<string, string> = {
@@ -43,6 +32,7 @@ export function ProfileHeader({ staff: member }: ProfileHeaderProps) {
   const joinYear = new Date(member.joinDate).getFullYear();
   const joinMonth = new Date(member.joinDate).toLocaleDateString("en-US", { month: "short" });
   const deptColor = deptColors[member.department] || "#6B7280";
+  const classCount = new Set(staffAssignments(member.id).map((a) => a.classId)).size;
 
   return (
     <div>
@@ -129,7 +119,7 @@ export function ProfileHeader({ staff: member }: ProfileHeaderProps) {
                   className="px-2 py-0.5 text-[11px] font-semibold rounded-md"
                   style={{ backgroundColor: `${deptColor}15`, color: deptColor }}
                 >
-                  {member.role}
+                  {member.designation}
                 </span>
                 <span className="flex items-center gap-1.5 text-[13px] text-[var(--muted)]">
                   <span
@@ -154,17 +144,20 @@ export function ProfileHeader({ staff: member }: ProfileHeaderProps) {
 
               {/* Stat pills */}
               <div className="flex items-center gap-2.5 mt-4 flex-wrap">
+                {member.isTeacher && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-[var(--foreground)] bg-[var(--background-secondary)] rounded-lg">
+                    <BookOpen className="w-3.5 h-3.5 text-[#0891B2]" />
+                    {classCount} {classCount === 1 ? "class" : "classes"}
+                  </span>
+                )}
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-[var(--foreground)] bg-[var(--background-secondary)] rounded-lg">
-                  <BookOpen className="w-3.5 h-3.5 text-[#0891B2]" />
-                  {member.classesAssigned} classes
+                  <Briefcase className="w-3.5 h-3.5 text-[#0891B2]" />
+                  {EMPLOYMENT_TYPE_LABEL[member.employmentType]}
+                  {member.ftePercent < 100 ? ` · ${member.ftePercent}%` : ""}
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-[var(--foreground)] bg-[var(--background-secondary)] rounded-lg">
                   <Calendar className="w-3.5 h-3.5 text-[#0891B2]" />
                   Joined {joinMonth} {joinYear}
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-[var(--foreground)] bg-[var(--background-secondary)] rounded-lg">
-                  <DollarSign className="w-3.5 h-3.5 text-[#10B981]" />
-                  ${member.salary.toLocaleString()}/yr
                 </span>
               </div>
             </div>

@@ -2,37 +2,27 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, CalendarDays, BarChart3, FileText } from "lucide-react";
+import { User, Briefcase, GraduationCap, CalendarDays, BarChart3, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { Staff } from "@/types/staff";
 import { BentoDetail } from "./bento-detail";
+import { JobTab } from "./job-tab";
+import { AssignmentsTab } from "./assignments-tab";
 import { LeaveTab } from "./leave-tab";
 import { PerformanceTab } from "./performance-tab";
 import { DocumentsTab } from "./documents-tab";
 
-interface StaffMember {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  role: string;
-  department: string;
-  status: "active" | "on_leave";
-  classesAssigned: number;
-  joinDate: string;
-  salary: number;
-  subjects: string[];
-}
-
 const tabs = [
   { id: "overview", label: "Overview", icon: User },
+  { id: "job", label: "Job", icon: Briefcase },
+  { id: "assignments", label: "Assignments", icon: GraduationCap },
   { id: "leave", label: "Leave", icon: CalendarDays },
   { id: "performance", label: "Performance", icon: BarChart3 },
   { id: "documents", label: "Documents", icon: FileText },
 ];
 
 interface StaffDetailTabsProps {
-  staff: StaffMember;
+  staff: Staff;
 }
 
 export function StaffDetailTabs({ staff }: StaffDetailTabsProps) {
@@ -79,6 +69,8 @@ export function StaffDetailTabs({ staff }: StaffDetailTabsProps) {
           transition={{ duration: 0.2 }}
         >
           {activeTab === "overview" && <BentoDetail staff={staff} />}
+          {activeTab === "job" && <JobTab staff={staff} />}
+          {activeTab === "assignments" && <AssignmentsTab staff={staff} />}
           {activeTab === "leave" && <LeaveTab staffId={staff.id} />}
           {activeTab === "performance" && <PerformanceTab staffId={staff.id} />}
           {activeTab === "documents" && <DocumentsTab staffId={staff.id} />}

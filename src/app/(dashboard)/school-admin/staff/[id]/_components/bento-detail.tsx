@@ -1,29 +1,21 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Activity, Calendar, BookOpen, User } from "lucide-react";
+import { Activity } from "lucide-react";
+import type { Staff } from "@/types/staff";
+import { staffAssignments } from "@/lib/demo-data";
 import { StatRing } from "./stat-ring";
 import { ScheduleCard } from "./schedule-tab";
 import { InfoCard } from "./info-card";
 import { SubjectsCard } from "./subjects-card";
 import { ActivityCard } from "./activity-tab";
 
-interface StaffMember {
-  email: string;
-  phone: string;
-  role: string;
-  department: string;
-  joinDate: string;
-  classesAssigned: number;
-  salary: number;
-  subjects: string[];
-}
-
 interface BentoDetailProps {
-  staff: StaffMember;
+  staff: Staff;
 }
 
 export function BentoDetail({ staff: member }: BentoDetailProps) {
+  const classCount = new Set(staffAssignments(member.id).map((a) => a.classId)).size;
   return (
     <div className="space-y-6">
       {/* Row 1: Performance Rings + Schedule */}
@@ -44,9 +36,9 @@ export function BentoDetail({ staff: member }: BentoDetailProps) {
           <div className="flex items-center justify-around">
             <StatRing
               label="Classes"
-              value={member.classesAssigned}
+              value={classCount}
               maxValue={8}
-              displayValue={String(member.classesAssigned)}
+              displayValue={String(classCount)}
               color="#0891B2"
             />
             <StatRing
@@ -73,7 +65,7 @@ export function BentoDetail({ staff: member }: BentoDetailProps) {
       {/* Row 2: Personal Info + Subjects */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <InfoCard staff={member} />
-        <SubjectsCard subjects={member.subjects || []} role={member.role} />
+        <SubjectsCard subjects={member.qualifiedSubjectIds} role={member.designation} />
       </div>
 
       {/* Row 3: Activity (full width) */}

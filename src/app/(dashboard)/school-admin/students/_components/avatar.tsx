@@ -3,24 +3,33 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-const gradients = [
-  "from-[#0891B2] to-[#10B981]",
-  "from-[#8B5CF6] to-[#EC4899]",
-  "from-[#F59E0B] to-[#EF4444]",
-  "from-[#10B981] to-[#3B82F6]",
-  "from-[#EC4899] to-[#8B5CF6]",
-  "from-[#3B82F6] to-[#0891B2]",
-  "from-[#EF4444] to-[#F59E0B]",
-  "from-[#06B6D4] to-[#A855F7]",
+// Calm, professional monogram tints (no candy gradients). Each is a translucent
+// wash over a single hue with solid text — flat and muted, the same theme-safe
+// pattern the dashboard's status pills use. A deterministic hash keeps people
+// visually distinct without looking playful.
+const tints = [
+  "var(--brand)",
+  "var(--success)",
+  "var(--warning)",
+  "var(--purple)",
+  "var(--error)",
+  "var(--foreground-secondary)",
 ];
 
-function getGradientIndex(firstName: string, lastName: string): number {
+function tintStyle(hue: string) {
+  return {
+    backgroundColor: `color-mix(in srgb, ${hue} 12%, transparent)`,
+    color: hue,
+  };
+}
+
+function getTintIndex(firstName: string, lastName: string): number {
   // Normalize whitespace before hashing so " John " and "John" land on the
-  // same gradient as their initials would.
+  // same tint as their initials would.
   const f = (firstName ?? "").trim().replace(/\s+/g, " ");
   const l = (lastName ?? "").trim().replace(/\s+/g, " ");
   const str = `${f}${l}` || "?";
-  return str.split("").reduce((sum, c) => sum + c.charCodeAt(0), 0) % gradients.length;
+  return str.split("").reduce((sum, c) => sum + c.charCodeAt(0), 0) % tints.length;
 }
 
 /** Build avatar initials safely. Falls back to "?" so we never render the literal string "undefined". */
@@ -52,7 +61,7 @@ interface AvatarProps {
 }
 
 export function Avatar({ firstName, lastName, avatar, size = "sm", className, ring }: AvatarProps) {
-  const gradient = gradients[getGradientIndex(firstName, lastName)];
+  const tintHue = tints[getTintIndex(firstName, lastName)];
   const initials = getInitials(firstName, lastName);
   const hasRoundedOverride = className?.includes("rounded-");
 
@@ -82,13 +91,13 @@ export function Avatar({ firstName, lastName, avatar, size = "sm", className, ri
   return (
     <div
       className={cn(
-        "bg-gradient-to-br flex items-center justify-center text-white font-semibold flex-shrink-0",
+        "flex items-center justify-center font-semibold flex-shrink-0",
         !hasRoundedOverride && "rounded-full",
-        gradient,
         sizeMap[size],
         ring && "ring-2 ring-offset-2 ring-offset-[var(--background)] ring-[var(--brand)]",
         className
       )}
+      style={tintStyle(tintHue)}
     >
       {initials}
     </div>

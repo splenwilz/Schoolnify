@@ -1,19 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { User, Mail, Phone, Building2, Calendar, BookOpen, DollarSign } from "lucide-react";
-
-interface StaffMember {
-  email: string;
-  phone: string;
-  department: string;
-  joinDate: string;
-  classesAssigned: number;
-  salary: number;
-}
+import { User, Mail, Phone, Building2, Calendar, Hash } from "lucide-react";
+import type { Staff } from "@/types/staff";
 
 interface InfoCardProps {
-  staff: StaffMember;
+  staff: Staff;
 }
 
 const iconMap: Record<string, typeof Mail> = {
@@ -21,8 +13,7 @@ const iconMap: Record<string, typeof Mail> = {
   Phone: Phone,
   Department: Building2,
   "Join Date": Calendar,
-  Classes: BookOpen,
-  Salary: DollarSign,
+  "Employee No.": Hash,
 };
 
 const colorMap: Record<string, string> = {
@@ -30,8 +21,7 @@ const colorMap: Record<string, string> = {
   Phone: "#0891B2",
   Department: "#0891B2",
   "Join Date": "#0891B2",
-  Classes: "#0891B2",
-  Salary: "#0891B2",
+  "Employee No.": "#0891B2",
 };
 
 export function InfoCard({ staff: member }: InfoCardProps) {
@@ -47,8 +37,7 @@ export function InfoCard({ staff: member }: InfoCardProps) {
         year: "numeric",
       }),
     },
-    { label: "Classes", value: `${member.classesAssigned} assigned` },
-    { label: "Salary", value: `$${member.salary.toLocaleString()}/yr` },
+    { label: "Employee No.", value: member.employeeNumber },
   ];
 
   return (

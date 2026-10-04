@@ -16,18 +16,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "../../students/_components/avatar";
-
-interface StaffMember {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: string;
-  department: string;
-  status: "active" | "on_leave";
-  joinDate: string;
-  classesAssigned: number;
-}
+import type { Staff } from "@/types/staff";
+import { EMPLOYMENT_TYPE_LABEL } from "@/types/staff";
 
 interface Tab {
   id: string;
@@ -39,7 +29,7 @@ type SortField = "name" | "role" | "department" | "joined" | null;
 type SortDir = "asc" | "desc";
 
 interface StaffTableProps {
-  staff: StaffMember[];
+  staff: Staff[];
   selectedStaff: string[];
   onSelectAll: () => void;
   onSelectStaff: (id: string) => void;
@@ -128,7 +118,7 @@ export function StaffTable({
   const allSelected = selectedStaff.length === staff.length && staff.length > 0;
 
   return (
-    <div className="rounded-2xl bg-[var(--card)] shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+    <div className="surface-flat overflow-hidden">
       {/* Table Header with Integrated Filters */}
       <div className="px-6 pt-5 pb-4">
         <div className="flex items-center justify-between mb-4">
@@ -289,21 +279,18 @@ export function StaffTable({
             </tr>
           </thead>
           <tbody>
-            {paginatedStaff.map((member, index) => {
+            {paginatedStaff.map((member) => {
               const isSelected = selectedStaff.includes(member.id);
 
               return (
-                <motion.tr
+                <tr
                   key={member.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.15, delay: index * 0.02 }}
                   className={cn(
                     "group transition-colors",
                     "border-b border-[var(--border)]/50 last:border-b-0",
                     isSelected
-                      ? "bg-[var(--background-secondary)]/60"
-                      : "hover:bg-[var(--background-secondary)]/30"
+                      ? "bg-[var(--background-secondary)]"
+                      : "hover:bg-[var(--background-secondary)]/50"
                   )}
                 >
                   <td className="px-6 py-4">
@@ -336,7 +323,7 @@ export function StaffTable({
                         className="rounded-xl"
                       />
                       <div className="min-w-0">
-                        <p className="text-[13px] font-semibold text-[var(--foreground)] group-hover/link:text-[#0891B2] transition-colors truncate">
+                        <p className="text-[13px] font-semibold text-[var(--foreground)] group-hover/link:text-[var(--brand)] transition-colors truncate">
                           {member.firstName} {member.lastName}
                         </p>
                         <p className="text-[12.5px] text-[var(--muted)] mt-0.5 truncate">
@@ -348,8 +335,14 @@ export function StaffTable({
 
                   <td className="px-4 py-4">
                     <span className="text-[13px] text-[var(--foreground)]">
-                      {member.role}
+                      {member.designation}
                     </span>
+                    {member.employmentType !== "full_time" && (
+                      <span className="block text-[11px] text-[var(--muted)] mt-0.5">
+                        {EMPLOYMENT_TYPE_LABEL[member.employmentType]}
+                        {member.ftePercent < 100 ? ` · ${member.ftePercent}%` : ""}
+                      </span>
+                    )}
                   </td>
 
                   <td className="px-4 py-4">
@@ -363,7 +356,7 @@ export function StaffTable({
                       <span
                         className={cn(
                           "w-1.5 h-1.5 rounded-full",
-                          member.status === "active" ? "bg-[#10B981]" : "bg-[#F59E0B]"
+                          member.status === "active" ? "bg-[var(--success)]" : "bg-[var(--warning)]"
                         )}
                       />
                       {member.status === "active" ? "Active" : "On leave"}
@@ -381,7 +374,7 @@ export function StaffTable({
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
                   </td>
-                </motion.tr>
+                </tr>
               );
             })}
           </tbody>
