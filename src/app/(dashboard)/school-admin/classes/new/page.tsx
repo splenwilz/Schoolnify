@@ -28,7 +28,7 @@ export default function AddClassPage() {
   }
 
   const teachers = staff
-    .filter((s) => s.role === "Teacher" || s.department)
+    .filter((s) => s.isTeacher || s.department)
     .map((s) => ({ id: s.id, name: `${s.firstName} ${s.lastName}` }));
 
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);

@@ -1,235 +1,238 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, Plus, Settings, X, Check } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Check, Plus, Settings, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { Staff } from "@/types/staff";
+import type { AbsenceLike } from "@/lib/staff/leave";
+import type { Granularity, RangeKey } from "@/lib/staff/metrics";
+import { DEFAULT_VISIBLE_WIDGETS, OVERVIEW_WIDGETS, computeOverview, type OverviewWidget, type WidgetFormat } from "@/lib/staff/overview";
 import { Sparkline } from "./sparkline";
 
-type RangeKey = "Last 7 days" | "Last 30 days" | "Last 90 days" | "This term";
-type GranKey = "Daily" | "Weekly" | "Monthly";
-
-const RANGES: RangeKey[] = ["Last 7 days", "Last 30 days", "Last 90 days", "This term"];
-const GRANS: GranKey[] = ["Daily", "Weekly", "Monthly"];
-
-// Flow metrics (hires, onboarding) accumulate with a longer range; stock
-// metrics (headcount, on leave, tenure, FTE) stay roughly constant.
-const FLOW: Record<RangeKey, number> = {
-  "Last 7 days": 1,
-  "Last 30 days": 3,
-  "Last 90 days": 7,
-  "This term": 11,
-};
-
-type Format = "count" | "years" | "fte";
-
-interface Widget {
-  id: string;
-  label: string;
-  description: string;
-  format: Format;
-  kind: "stock" | "flow";
-  base: number; // value for the shortest range
-  prevBase: number;
-  spark: number[];
+interface StaffOverviewProps {
+  staff: readonly Staff[];
+  absences: readonly AbsenceLike[];
+  today: string;
+  termStart?: string;
 }
 
-const ALL_WIDGETS: Widget[] = [
-  { id: "headcount", label: "Headcount", description: "Total staff on the books", format: "count", kind: "stock", base: 30, prevBase: 28, spark: [24, 25, 26, 27, 28, 28, 29, 30] },
-  { id: "new_hires", label: "New hires", description: "People who joined this period", format: "count", kind: "flow", base: 2, prevBase: 1, spark: [0, 1, 0, 1, 1, 0, 1, 2] },
-  { id: "on_leave", label: "On leave", description: "Staff currently away", format: "count", kind: "stock", base: 1, prevBase: 2, spark: [3, 2, 2, 1, 2, 1, 1, 1] },
-  { id: "onboarding", label: "Onboarding", description: "Not yet active", format: "count", kind: "flow", base: 2, prevBase: 1, spark: [0, 1, 1, 1, 2, 1, 2, 2] },
-  { id: "avg_tenure", label: "Avg tenure", description: "Average years of service", format: "years", kind: "stock", base: 6.9, prevBase: 6.5, spark: [6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9] },
-  { id: "fte", label: "Full-time equivalent", description: "Total FTE across staff", format: "fte", kind: "stock", base: 28.7, prevBase: 27.9, spark: [26, 26.5, 27, 27.4, 27.9, 28.2, 28.5, 28.7] },
-];
+const RANGE_LABEL: Record<RangeKey, string> = {
+  "7d": "Last 7 days",
+  "30d": "Last 30 days",
+  "90d": "Last 90 days",
+  term: "This term",
+};
 
-const DEFAULT_VISIBLE = ["headcount", "new_hires", "on_leave", "onboarding", "avg_tenure", "fte"];
+const GRANULARITY_LABEL: Record<Granularity, string> = { daily: "Daily", weekly: "Weekly", monthly: "Monthly" };
 
-function fmt(value: number, format: Format): string {
+function fmt(value: number, format: WidgetFormat): string {
   if (format === "years") return `${value.toFixed(1)} yrs`;
   if (format === "fte") return `${value.toFixed(1)} FTE`;
   return `${Math.round(value)}`;
 }
 
 function pctChange(current: number, previous: number): string {
-  if (previous === 0) return "+100%";
+  if (previous === 0) return current === 0 ? "0%" : "+100%";
   const diff = ((current - previous) / previous) * 100;
   return `${diff >= 0 ? "+" : ""}${diff.toFixed(1)}%`;
 }
 
-function valuesFor(w: Widget, range: RangeKey) {
-  const factor = w.kind === "flow" ? FLOW[range] : 1;
-  const value = w.base * factor;
-  const previous = w.prevBase * factor;
-  // Compare series: the same shape shifted toward the previous-period level.
-  const ratio = value === 0 ? 1 : previous / value;
-  const compare = w.spark.map((v) => v * ratio);
-  return { value, previous, compare };
+const selectClass =
+  "h-8 pl-2 pr-7 text-sm rounded border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30";
+
+// Which widgets are shown is a per-viewer convenience, so it lives in
+// localStorage. Read via useSyncExternalStore so the server snapshot
+// (defaults) and the client agree at hydration, then the stored layout applies.
+// Scoped by host so two schools on one browser (slug subdomains) keep their own layout.
+const storageKey = () => `schoolnify.staff.overview.widgets:${window.location.hostname}`;
+const listeners = new Set<() => void>();
+function readRaw(): string {
+  try {
+    return window.localStorage.getItem(storageKey()) ?? "";
+  } catch {
+    return "";
+  }
+}
+function writeVisible(ids: string[]): void {
+  try {
+    window.localStorage.setItem(storageKey(), JSON.stringify(ids));
+  } catch {
+    // storage unavailable (private mode, quota): the layout just does not persist
+  }
+  listeners.forEach((l) => l());
+}
+function subscribe(cb: () => void): () => void {
+  listeners.add(cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    listeners.delete(cb);
+    window.removeEventListener("storage", cb);
+  };
+}
+function parseVisible(raw: string): string[] {
+  if (!raw) return DEFAULT_VISIBLE_WIDGETS;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((id): id is string => typeof id === "string" && OVERVIEW_WIDGETS.some((w) => w.id === id))
+      : DEFAULT_VISIBLE_WIDGETS;
+  } catch {
+    return DEFAULT_VISIBLE_WIDGETS;
+  }
 }
 
-export function StaffOverview() {
-  const [range, setRange] = useState<RangeKey>("Last 7 days");
-  const [gran, setGran] = useState<GranKey>("Daily");
+export function StaffOverview({ staff, absences, today, termStart }: StaffOverviewProps) {
+  const [range, setRange] = useState<RangeKey>("7d");
+  const [granularity, setGranularity] = useState<Granularity>("daily");
   const [compare, setCompare] = useState(false);
-  const [visible, setVisible] = useState<string[]>(DEFAULT_VISIBLE);
+  const rawVisible = useSyncExternalStore(subscribe, readRaw, () => "");
+  const visible = useMemo(() => parseVisible(rawVisible), [rawVisible]);
+  const setVisible = (update: (prev: string[]) => string[]) => writeVisible(update(visible));
   const [editMode, setEditMode] = useState(false);
-  const [showRange, setShowRange] = useState(false);
-  const [showGran, setShowGran] = useState(false);
-  const [showAdd, setShowAdd] = useState(false);
-  const rangeRef = useRef<HTMLDivElement>(null);
-  const granRef = useRef<HTMLDivElement>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [menuFocus, setMenuFocus] = useState<number | null>(null);
   const addRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const ids = { range: useId(), gran: useId(), heading: useId() };
 
+  // Menu dismissal: Escape and clicks outside, per the WAI-ARIA menu button pattern.
   useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (rangeRef.current && !rangeRef.current.contains(e.target as Node)) setShowRange(false);
-      if (granRef.current && !granRef.current.contains(e.target as Node)) setShowGran(false);
-      if (addRef.current && !addRef.current.contains(e.target as Node)) setShowAdd(false);
-    }
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
+    if (!addOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setAddOpen(false);
+        setMenuFocus(null);
+        triggerRef.current?.focus();
+      }
+    };
+    const onPointer = (e: MouseEvent) => {
+      if (addRef.current && !addRef.current.contains(e.target as Node)) {
+        setAddOpen(false);
+        setMenuFocus(null);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onPointer);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onPointer);
+    };
+  }, [addOpen]);
 
-  const widgets = visible
-    .map((id) => ALL_WIDGETS.find((w) => w.id === id))
-    .filter((w): w is Widget => Boolean(w));
-  const availableToAdd = ALL_WIDGETS.filter((w) => !visible.includes(w.id));
+  // Focus follows the roving index once the menu has rendered.
+  useEffect(() => {
+    if (addOpen && menuFocus !== null) itemRefs.current[menuFocus]?.focus();
+  }, [addOpen, menuFocus]);
+
+  const closeMenu = (restoreFocus: boolean) => {
+    setAddOpen(false);
+    setMenuFocus(null);
+    if (restoreFocus) triggerRef.current?.focus();
+  };
+
+  const termAvailable = Boolean(termStart && termStart <= today);
+  const rangeOptions = (Object.keys(RANGE_LABEL) as RangeKey[]).filter((k) => k !== "term" || termAvailable);
+
+  const widgets = useMemo(
+    () => computeOverview(staff, { today, range, granularity, absences, termStart }),
+    [staff, today, range, granularity, absences, termStart]
+  );
+  const shown = visible.map((id) => widgets.find((w) => w.id === id)).filter((w): w is OverviewWidget => Boolean(w));
+  const hidden = OVERVIEW_WIDGETS.filter((w) => !visible.includes(w.id));
+
+  // WAI-ARIA menu button pattern: Down/Up open the menu on the first/last
+  // item; inside, arrows wrap, Home/End jump, Escape closes and restores focus.
+  const onTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (hidden.length === 0) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      setAddOpen(true);
+      setMenuFocus(e.key === "ArrowDown" ? 0 : hidden.length - 1);
+    }
+  };
+  const onMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const last = hidden.length - 1;
+    const current = menuFocus ?? 0;
+    const next =
+      e.key === "ArrowDown" ? (current === last ? 0 : current + 1)
+      : e.key === "ArrowUp" ? (current === 0 ? last : current - 1)
+      : e.key === "Home" ? 0
+      : e.key === "End" ? last
+      : null;
+    if (next === null) return;
+    e.preventDefault();
+    setMenuFocus(next);
+  };
 
   return (
-    <section>
+    <section aria-labelledby={ids.heading}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h2 className="text-xl font-semibold text-[var(--foreground)]">Your overview</h2>
+        <h2 id={ids.heading} className="text-xl font-semibold text-[var(--foreground)]">Your overview</h2>
 
-        <div className="flex items-center gap-3 text-sm">
-          {/* Date range */}
-          <div className="flex items-center gap-2">
-            <span className="text-[var(--muted)]">Date range</span>
-            <div className="relative" ref={rangeRef}>
-              <button
-                onClick={() => setShowRange((v) => !v)}
-                className="flex items-center gap-1 px-2 py-1 rounded border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:bg-[var(--background-secondary)]"
-              >
-                {range}
-                <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-              <AnimatePresence>
-                {showRange && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                    transition={{ duration: 0.12 }}
-                    className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-lg z-30 py-1"
-                  >
-                    {RANGES.map((option) => (
-                      <button
-                        key={option}
-                        onClick={() => { setRange(option); setShowRange(false); }}
-                        className={cn(
-                          "w-full px-3 py-2 text-left text-sm hover:bg-[var(--background-secondary)] transition-colors",
-                          range === option ? "text-[var(--brand)] font-medium" : "text-[var(--foreground)]"
-                        )}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
+        <div className="flex items-center gap-3 text-sm flex-wrap">
+          <label htmlFor={ids.range} className="text-[var(--muted)]">Date range</label>
+          <select id={ids.range} value={range} onChange={(e) => setRange(e.target.value as RangeKey)} className={selectClass}>
+            {rangeOptions.map((k) => (
+              <option key={k} value={k}>{RANGE_LABEL[k]}</option>
+            ))}
+          </select>
 
-          {/* Granularity */}
-          <div className="relative" ref={granRef}>
-            <button
-              onClick={() => setShowGran((v) => !v)}
-              className="flex items-center gap-1 px-2 py-1 rounded border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:bg-[var(--background-secondary)]"
-            >
-              {gran}
-              <ChevronDown className="w-3.5 h-3.5" />
-            </button>
-            <AnimatePresence>
-              {showGran && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                  transition={{ duration: 0.12 }}
-                  className="absolute right-0 top-full mt-1 w-32 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-lg z-30 py-1"
-                >
-                  {GRANS.map((option) => (
-                    <button
-                      key={option}
-                      onClick={() => { setGran(option); setShowGran(false); }}
-                      className={cn(
-                        "w-full px-3 py-2 text-left text-sm hover:bg-[var(--background-secondary)] transition-colors",
-                        gran === option ? "text-[var(--brand)] font-medium" : "text-[var(--foreground)]"
-                      )}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <label htmlFor={ids.gran} className="sr-only">Granularity</label>
+          <select id={ids.gran} value={granularity} onChange={(e) => setGranularity(e.target.value as Granularity)} className={selectClass}>
+            {(Object.keys(GRANULARITY_LABEL) as Granularity[]).map((k) => (
+              <option key={k} value={k}>{GRANULARITY_LABEL[k]}</option>
+            ))}
+          </select>
 
-          {/* Compare */}
           <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={compare}
-              onChange={(e) => setCompare(e.target.checked)}
-              className="w-4 h-4 rounded border-[var(--border)] accent-[var(--brand)]"
-            />
-            <span className="text-[var(--muted)]">Compare</span>
+            <input type="checkbox" checked={compare} onChange={(e) => setCompare(e.target.checked)} className="w-4 h-4 rounded border-[var(--border)] accent-[var(--brand)]" />
+            <span className="text-[var(--muted)]">Compare to previous period</span>
           </label>
-          {compare && <span className="text-[var(--brand)]">Previous period</span>}
 
-          {/* Add */}
           <div className="relative" ref={addRef}>
             <button
-              onClick={() => setShowAdd((v) => !v)}
+              type="button"
+              ref={triggerRef}
+              aria-haspopup="menu"
+              aria-expanded={addOpen}
+              onClick={() => (addOpen ? closeMenu(false) : setAddOpen(true))}
+              onKeyDown={onTriggerKeyDown}
               className="flex items-center gap-1 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:bg-[var(--background-secondary)]"
             >
-              <Plus className="w-4 h-4" />
-              Add
+              <Plus className="w-4 h-4" aria-hidden="true" />
+              Add widget
             </button>
-            <AnimatePresence>
-              {showAdd && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                  transition={{ duration: 0.12 }}
-                  className="absolute right-0 top-full mt-1 w-64 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-lg z-30 py-1 max-h-72 overflow-y-auto"
-                >
-                  {availableToAdd.length === 0 ? (
-                    <div className="px-3 py-4 text-center text-sm text-[var(--muted)]">
-                      All widgets are visible
-                    </div>
-                  ) : (
-                    availableToAdd.map((w) => (
-                      <button
-                        key={w.id}
-                        onClick={() => { setVisible((p) => [...p, w.id]); setShowAdd(false); }}
-                        className="w-full flex items-start gap-3 px-3 py-2.5 text-left hover:bg-[var(--background-secondary)] transition-colors"
-                      >
-                        <Plus className="w-4 h-4 text-[var(--brand)] mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium text-[var(--foreground)]">{w.label}</p>
-                          <p className="text-xs text-[var(--muted)]">{w.description}</p>
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {addOpen && (
+              <div role="menu" aria-label="Available widgets" onKeyDown={onMenuKeyDown} className="absolute right-0 top-full mt-1 w-64 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-lg z-30 py-1">
+                {hidden.length === 0 ? (
+                  <p className="px-3 py-4 text-center text-sm text-[var(--muted)]">All widgets are visible</p>
+                ) : (
+                  hidden.map((w, i) => (
+                    <button
+                      key={w.id}
+                      type="button"
+                      role="menuitem"
+                      tabIndex={menuFocus === i || (menuFocus === null && i === 0) ? 0 : -1}
+                      ref={(el) => { itemRefs.current[i] = el; }}
+                      onClick={() => { setVisible((p) => [...p, w.id]); closeMenu(true); }}
+                      className="w-full flex items-start gap-3 px-3 py-2.5 text-left hover:bg-[var(--background-secondary)] transition-colors"
+                    >
+                      <Plus className="w-4 h-4 text-[var(--brand)] mt-0.5 shrink-0" aria-hidden="true" />
+                      <span>
+                        <span className="block text-sm font-medium text-[var(--foreground)]">{w.label}</span>
+                        <span className="block text-xs text-[var(--muted)]">{w.description}</span>
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Edit */}
           <button
+            type="button"
+            aria-pressed={editMode}
             onClick={() => setEditMode((v) => !v)}
             className={cn(
               "flex items-center gap-1 px-3 py-1.5 rounded border transition-colors",
@@ -238,66 +241,63 @@ export function StaffOverview() {
                 : "border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:bg-[var(--background-secondary)]"
             )}
           >
-            {editMode ? <Check className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
-            {editMode ? "Done" : "Edit"}
+            {editMode ? <Check className="w-4 h-4" aria-hidden="true" /> : <Settings className="w-4 h-4" aria-hidden="true" />}
+            {editMode ? "Done" : "Edit widgets"}
           </button>
         </div>
       </div>
 
-      {/* Widget grid */}
-      {widgets.length === 0 ? (
+      {shown.length === 0 ? (
         <div className="p-12 rounded-lg border-2 border-dashed border-[var(--border)] text-center">
           <p className="text-sm text-[var(--muted)] mb-2">No widgets visible</p>
-          <button
-            onClick={() => setVisible(DEFAULT_VISIBLE)}
-            className="text-sm text-[var(--brand)] hover:underline"
-          >
+          <button type="button" onClick={() => setVisible(() => DEFAULT_VISIBLE_WIDGETS)} className="text-sm text-[var(--brand)] hover:underline">
             Reset to defaults
           </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {widgets.map((w) => {
-            const { value, previous, compare: compareSpark } = valuesFor(w, range);
-            const up = value >= previous;
-            return (
-              <div key={w.id} className="relative group">
-                {editMode && (
-                  <button
-                    onClick={() => setVisible((p) => p.filter((id) => id !== w.id))}
-                    aria-label={`Remove ${w.label}`}
-                    className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-[var(--error)] text-white flex items-center justify-center shadow-md"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                <div
-                  className={cn(
-                    "p-4 rounded-lg border bg-[var(--card)] transition-all",
-                    editMode ? "border-dashed border-[var(--brand)]/40 ring-1 ring-[var(--brand)]/10" : "border-[var(--border)]"
-                  )}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-[var(--foreground)]">{w.label}</span>
-                  </div>
-                  <div className="text-2xl font-semibold text-[var(--foreground)] tabular-nums">
-                    {fmt(value, w.format)}
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs mt-1">
-                    <span className={up ? "text-[var(--success)] font-medium" : "text-[var(--error)] font-medium"}>
-                      {pctChange(value, previous)}
-                    </span>
-                    <span className="text-[var(--muted)]">vs {fmt(previous, w.format)} prev</span>
-                  </div>
-                  <div className="mt-3">
-                    <Sparkline data={w.spark} compareData={compare ? compareSpark : undefined} height={40} />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {shown.map((w) => (
+            <WidgetCard key={w.id} widget={w} compare={compare} editMode={editMode} onRemove={() => setVisible((p) => p.filter((id) => id !== w.id))} />
+          ))}
         </div>
       )}
     </section>
+  );
+}
+
+function WidgetCard({ widget: w, compare, editMode, onRemove }: { widget: OverviewWidget; compare: boolean; editMode: boolean; onRemove: () => void }) {
+  const labelId = useId();
+  const up = w.value >= w.previous;
+  return (
+    <div className="relative">
+      {editMode && (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${w.label}`}
+          className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-[var(--error)] text-white flex items-center justify-center shadow-md"
+        >
+          <X className="w-3.5 h-3.5" aria-hidden="true" />
+        </button>
+      )}
+      <div
+        role="group"
+        aria-labelledby={labelId}
+        className={cn(
+          "p-4 rounded-lg border bg-[var(--card)] transition-all",
+          editMode ? "border-dashed border-[var(--brand)]/40 ring-1 ring-[var(--brand)]/10" : "border-[var(--border)]"
+        )}
+      >
+        <span id={labelId} className="block text-sm font-medium text-[var(--foreground)] mb-2">{w.label}</span>
+        <div className="text-2xl font-semibold text-[var(--foreground)] tabular-nums">{fmt(w.value, w.format)}</div>
+        <div className="flex items-center gap-1.5 text-xs mt-1">
+          <span className={up ? "text-[var(--success)] font-medium" : "text-[var(--error)] font-medium"}>{pctChange(w.value, w.previous)}</span>
+          <span className="text-[var(--muted)]">vs {fmt(w.previous, w.format)} prev</span>
+        </div>
+        <div className="mt-3">
+          <Sparkline data={w.spark.map((p) => p.value)} compareData={compare ? w.compare.map((p) => p.value) : undefined} height={40} />
+        </div>
+      </div>
+    </div>
   );
 }

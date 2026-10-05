@@ -6,7 +6,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Student } from "@/types/student";
 import { STATUS_LABEL } from "@/types/student";
-import { Avatar } from "./avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 interface StudentGroupedViewProps {

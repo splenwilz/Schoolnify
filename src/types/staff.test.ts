@@ -1,17 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { credentialStatusFor, staffFullName } from "./staff";
-
-describe("credentialStatusFor (toolchain smoke test)", () => {
-  it("treats a null expiry as valid", () => {
-    expect(credentialStatusFor(null, "2026-10-04")).toBe("valid");
-  });
-  it("flags a past expiry as expired", () => {
-    expect(credentialStatusFor("2026-01-01", "2026-10-04")).toBe("expired");
-  });
-});
+import { staffFullName } from "./staff";
 
 describe("staffFullName", () => {
-  it("prefers displayName when set", () => {
-    expect(staffFullName({ firstName: "A", lastName: "B", displayName: "Ms B" })).toBe("Ms B");
+  it("prefers the preferred name, else title and names", () => {
+    expect(staffFullName({ firstName: "A", lastName: "B", preferredName: "Ms B" })).toBe("Ms B");
+    expect(staffFullName({ firstName: "A", lastName: "B", preferredName: null })).toBe("A B");
+    expect(staffFullName({ firstName: "A", lastName: "B", preferredName: null, title: "Rev. Fr." })).toBe("Rev. Fr. A B");
   });
 });

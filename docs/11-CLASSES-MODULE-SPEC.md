@@ -3,6 +3,7 @@
 > **Version:** 1.0.0
 > **Last Updated:** May 2026
 > **Status:** Frozen for backend build
+> **Amended by:** `11A-TEACHING-MODEL-AMENDMENT.md` (v1.1): `class.teaching_model`, `teaching_assignment` replaces `class_subject_teacher`, timetable anchor
 > **Source of truth:** `src/types/class.ts` + `src/lib/demo-data.ts` (classes section)
 
 ---

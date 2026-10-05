@@ -11,6 +11,8 @@ export const schoolInfo = {
   id: "sch_001",
   slug: "greenwood-academy",
   name: "Greenwood Academy",
+  /** ISO 3166-1 alpha-2. Drives national phone number handling in forms and imports. */
+  country: "NG",
   logo: null, // Would be a URL in production
   address: "123 Education Lane, Springfield, ST 12345",
   phone: "+1 (555) 123-4567",
@@ -215,25 +217,50 @@ export const students: Student[] = [
 // ============================================
 import type {
   Staff,
-  StaffCredential,
+  StaffDetail,
+  StaffContract,
+  ContractRole,
+  EmploymentEvent,
+  EducationAward,
+  ProfessionalRegistration,
+  VettingCheck,
+  TrainingRecord,
+  StaffAbsence,
   StaffAssignment,
-  AssignmentRole,
   PermissionRole,
   StaffCategory,
-  EmploymentType,
+  ContractType,
+  Employer,
   EmploymentStatus,
 } from "@/types/staff";
+import type { EmergencyContact } from "@/types/person";
+import { projectEmployment } from "@/lib/staff/projections";
+import { defaultPayStructure } from "@/lib/staff/pay";
+import { assignmentsForStaff } from "@/lib/staff/assignments";
 
-// Compact builder: takes the fields that vary per person, fills sensible
-// defaults, and derives the legacy aliases (role/joinDate/status/salary/
-// classesAssigned/subjects) so existing components keep compiling.
-function mkStaff(p: {
+// ---------------------------------------------------------------------------
+// Staff (docs/12A-STAFF-MODEL-AMENDMENT.md)
+// ---------------------------------------------------------------------------
+// Each person gets a contract with a primary post (plus any responsibilities)
+// and a hire event; the flat read-model fields are projections of those, so
+// the demo exercises the same derivation the API will perform.
+const STAFF_TODAY = new Date().toISOString().slice(0, 10);
+
+export const staffContracts: StaffContract[] = [];
+export const employmentEvents: EmploymentEvent[] = [];
+let roleSeq = 0;
+let eventSeq = 0;
+
+interface StaffSeed {
   id: string;
+  title?: string;
   firstName: string;
   lastName: string;
-  email: string;
-  phone: string; // E.164
+  preferredName?: string;
+  email: string | null;
+  phone: string | null; // E.164
   gender: "male" | "female";
+  dateOfBirth?: string;
   designation: string;
   staffCategory: StaffCategory;
   isTeacher: boolean;
@@ -241,134 +268,280 @@ function mkStaff(p: {
   department: string;
   hireDate: string;
   reportsToId: string | null;
-  gradeBand: string;
+  gradeLevel?: string;
   subjects: string[];
-  salary: number;
-  classesAssigned: number;
-  employmentType?: EmploymentType;
-  ftePercent?: number;
-  onLeave?: boolean;
-  employmentStatus?: EmploymentStatus;
-}): Staff {
+  contractType?: ContractType;
+  employer?: Employer;
+  fte?: number;
+  isTermTimeOnly?: boolean;
+  endDate?: string;
+  probationEndDate?: string;
+  /** Explicit status override (e.g. started but not yet activated). */
+  statusOverride?: EmploymentStatus;
+  suspendedUntil?: string;
+  exit?: { date: string; reason: "resignation" | "dismissal" | "end_of_contract" | "retirement" | "death" | "transfer_out" };
+  responsibilities?: { designation: string; allowanceCode: string; startDate: string; endDate?: string }[];
+  emergencyContact?: { name: string; relationship: string; phone: string };
+  canLogin?: boolean;
+}
+
+function mkStaff(p: StaffSeed): Staff {
+  const contractId = `ctr_${p.id.slice(4)}`;
+  const roles: ContractRole[] = [
+    {
+      id: `role_${String(++roleSeq).padStart(3, "0")}`,
+      contractId,
+      designation: p.designation,
+      roleKind: "post",
+      department: p.department,
+      reportsToId: p.reportsToId,
+      fteShare: null,
+      allowanceCode: null,
+      allowanceAmount: null,
+      isPrimary: true,
+      startDate: p.hireDate,
+      endDate: null,
+      payStructure: (() => {
+        const pay = defaultPayStructure({ employer: p.employer ?? "school", isTeacher: p.isTeacher, gradeLevel: p.gradeLevel ?? null, step: p.employer === "government_board" ? 3 : null });
+        return pay ? { ...pay, firstAppointmentDate: p.hireDate } : null;
+      })(),
+    },
+    ...(p.responsibilities ?? []).map<ContractRole>((r) => ({
+      id: `role_${String(++roleSeq).padStart(3, "0")}`,
+      contractId,
+      designation: r.designation,
+      roleKind: "responsibility",
+      department: p.department,
+      reportsToId: null,
+      fteShare: null,
+      allowanceCode: r.allowanceCode,
+      allowanceAmount: null,
+      isPrimary: false,
+      startDate: r.startDate,
+      endDate: r.endDate ?? null,
+      payStructure: null,
+    })),
+  ];
+  const contract: StaffContract = {
+    id: contractId,
+    staffId: p.id,
+    employer: p.employer ?? "school",
+    agencyId: p.employer === "agency" ? "agency_001" : null,
+    contractType: p.contractType ?? "permanent",
+    startDate: p.hireDate,
+    endDate: p.endDate ?? p.exit?.date ?? null,
+    probationEndDate: p.probationEndDate ?? null,
+    confirmationDate: null,
+    hoursPerWeek: null,
+    weeksPerYear: null,
+    fte: p.fte ?? 1,
+    isTermTimeOnly: p.isTermTimeOnly ?? false,
+    noticePeriodDays: null,
+    documentUrl: null,
+    roles,
+  };
+  staffContracts.push(contract);
+
+  const events: EmploymentEvent[] = [
+    { id: `evt_${String(++eventSeq).padStart(3, "0")}`, staffId: p.id, type: "hire", effectiveDate: p.hireDate, endDate: null, outcome: null, reason: null, eligibleForRehire: null, notes: null, recordedById: "stf_029", recordedAt: `${p.hireDate}T09:00:00Z` },
+  ];
+  if (p.statusOverride) events.push({ id: `evt_${String(++eventSeq).padStart(3, "0")}`, staffId: p.id, type: "status_change", effectiveDate: p.hireDate, endDate: null, outcome: p.statusOverride, reason: "Awaiting documents", eligibleForRehire: null, notes: null, recordedById: "stf_029", recordedAt: `${p.hireDate}T09:05:00Z` });
+  if (p.suspendedUntil) events.push({ id: `evt_${String(++eventSeq).padStart(3, "0")}`, staffId: p.id, type: "suspension", effectiveDate: "2026-09-28", endDate: p.suspendedUntil, outcome: null, reason: "Pending investigation", eligibleForRehire: null, notes: null, recordedById: "stf_005", recordedAt: "2026-09-28T08:00:00Z" });
+  if (p.exit) events.push({ id: `evt_${String(++eventSeq).padStart(3, "0")}`, staffId: p.id, type: "exit", effectiveDate: p.exit.date, endDate: null, outcome: null, reason: p.exit.reason, eligibleForRehire: p.exit.reason === "resignation", notes: null, recordedById: "stf_029", recordedAt: `${p.exit.date}T17:00:00Z` });
+  employmentEvents.push(...events);
+
+  const projection = projectEmployment([contract], events, STAFF_TODAY);
+  const emergencyContacts: EmergencyContact[] = p.emergencyContact
+    ? [{ id: `ec_${p.id.slice(4)}`, name: p.emergencyContact.name, relationship: p.emergencyContact.relationship, phone: p.emergencyContact.phone, altPhone: null, email: null, priority: 1, isPrimary: true }]
+    : [];
+  // Phone-first: anyone reachable can be invited; explicit false for staff who will not use the system.
+  const canLogin = p.canLogin ?? Boolean(p.email ?? p.phone);
   return {
     id: p.id,
+    personId: `per_${p.id.slice(4)}`,
+    employeeNumber: `EMP-${p.id.slice(4)}`,
+    title: p.title ?? null,
     firstName: p.firstName,
     middleName: null,
     lastName: p.lastName,
-    displayName: null,
-    email: p.email,
-    phone: p.phone,
-    avatar: null,
+    suffix: null,
+    preferredName: p.preferredName ?? null,
+    formerNames: [],
     gender: p.gender,
-    employeeNumber: `EMP-${p.id.slice(4)}`,
-    designation: p.designation,
+    dateOfBirth: p.dateOfBirth ?? null,
+    photoUrl: null,
+    personalEmail: null,
+    preferredChannel: p.email ? "email" : "whatsapp",
+    preferredLanguage: null,
+    phone: p.phone,
+    phones: p.phone ? [{ type: "mobile", number: p.phone, isPrimary: true, verifiedAt: null }] : [],
+    addresses: [],
+    emergencyContacts,
+    email: p.email,
     staffCategory: p.staffCategory,
     isTeacher: p.isTeacher,
     permissionRole: p.permissionRole,
-    department: p.department,
-    employmentType: p.employmentType ?? "full_time",
-    ftePercent: p.ftePercent ?? 100,
-    hireDate: p.hireDate,
-    exitDate: null,
-    reportsToId: p.reportsToId,
-    employmentStatus: p.employmentStatus ?? "active",
-    gradeBand: p.gradeBand,
-    customFields: {},
     qualifiedSubjectIds: p.subjects,
-    // legacy aliases
-    role: p.designation,
-    joinDate: p.hireDate,
-    status: p.onLeave ? "on_leave" : "active",
-    salary: p.salary,
-    classesAssigned: p.classesAssigned,
-    subjects: p.subjects,
+    customFields: {},
+    ...projection,
+    coverRole: p.isTeacher ? "provides" : "excluded",
+    coverPriority: null,
+    appraiserId: p.reportsToId,
+    appraisalCycleKey: "2026/2027",
+    careerStage: p.gradeLevel ?? null,
+    seniorLeadership: p.designation === "Administrator" || p.designation === "Vice Principal",
+    canLogin,
+    loginIdentifier: canLogin ? (p.email ? { type: "email", value: p.email } : p.phone ? { type: "phone", value: p.phone } : null) : null,
   };
 }
 
 export const staff: Staff[] = [
-  mkStaff({ id: "stf_001", firstName: "John", lastName: "Smith", email: "john.smith@greenwood.edu", phone: "+15551112222", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Mathematics", hireDate: "2018-08-01", reportsToId: "stf_005", gradeBand: "T3", subjects: ["Algebra", "Geometry", "Calculus"], salary: 65000, classesAssigned: 4 }),
-  mkStaff({ id: "stf_002", firstName: "Emily", lastName: "Davis", email: "emily.davis@greenwood.edu", phone: "+15552223333", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "English", hireDate: "2019-08-15", reportsToId: "stf_005", gradeBand: "T2", subjects: ["Literature", "Creative Writing", "Grammar"], salary: 62000, classesAssigned: 5 }),
-  mkStaff({ id: "stf_003", firstName: "Michael", lastName: "Lee", email: "michael.lee@greenwood.edu", phone: "+15553334444", gender: "male", designation: "Department Head", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Science", hireDate: "2015-08-01", reportsToId: "stf_005", gradeBand: "M2", subjects: ["Physics", "Chemistry"], salary: 78000, classesAssigned: 3 }),
-  mkStaff({ id: "stf_004", firstName: "Sarah", lastName: "Taylor", email: "sarah.taylor@greenwood.edu", phone: "+15554445555", gender: "female", designation: "Counselor", staffCategory: "support", isTeacher: false, permissionRole: "registrar", department: "Student Services", hireDate: "2020-01-15", reportsToId: "stf_005", gradeBand: "S2", subjects: [], salary: 55000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_005", firstName: "David", lastName: "Anderson", email: "david.anderson@greenwood.edu", phone: "+15555556666", gender: "male", designation: "Administrator", staffCategory: "support", isTeacher: false, permissionRole: "school_admin", department: "Administration", hireDate: "2017-06-01", reportsToId: null, gradeBand: "M3", subjects: [], salary: 72000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_006", firstName: "Jennifer", lastName: "Wilson", email: "jennifer.wilson@greenwood.edu", phone: "+15556667777", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "History", hireDate: "2021-08-15", reportsToId: "stf_005", gradeBand: "T2", subjects: ["World History", "US History", "Civics"], salary: 58000, classesAssigned: 4 }),
-  mkStaff({ id: "stf_007", firstName: "Robert", lastName: "Brown", email: "robert.brown@greenwood.edu", phone: "+15557778888", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Physical Education", hireDate: "2016-08-01", reportsToId: "stf_005", gradeBand: "T2", subjects: ["Physical Education", "Health"], salary: 52000, classesAssigned: 6 }),
-  mkStaff({ id: "stf_008", firstName: "Lisa", lastName: "Martinez", email: "lisa.martinez@greenwood.edu", phone: "+15558889999", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Art", hireDate: "2019-01-10", reportsToId: "stf_005", gradeBand: "T2", subjects: ["Visual Arts", "Art History"], salary: 54000, classesAssigned: 5 }),
-  mkStaff({ id: "stf_009", firstName: "James", lastName: "Garcia", email: "james.garcia@greenwood.edu", phone: "+15559990000", gender: "male", designation: "IT Support", staffCategory: "support", isTeacher: false, permissionRole: "support", department: "Technology", hireDate: "2022-03-01", reportsToId: "stf_005", gradeBand: "S2", subjects: [], salary: 60000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_010", firstName: "Amanda", lastName: "Thompson", email: "amanda.thompson@greenwood.edu", phone: "+15550001111", gender: "female", designation: "Librarian", staffCategory: "support", isTeacher: false, permissionRole: "support", department: "Library", hireDate: "2018-02-15", reportsToId: "stf_005", gradeBand: "S1", subjects: [], salary: 48000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_011", firstName: "Christopher", lastName: "Moore", email: "christopher.moore@greenwood.edu", phone: "+15551110000", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Music", hireDate: "2020-08-15", reportsToId: "stf_005", gradeBand: "T2", subjects: ["Band", "Choir", "Music Theory"], salary: 56000, classesAssigned: 3, employmentType: "part_time", ftePercent: 60, onLeave: true }),
-  mkStaff({ id: "stf_012", firstName: "Patricia", lastName: "White", email: "patricia.white@greenwood.edu", phone: "+15552221111", gender: "female", designation: "Nurse", staffCategory: "support", isTeacher: false, permissionRole: "support", department: "Health Services", hireDate: "2017-09-01", reportsToId: "stf_005", gradeBand: "S1", subjects: [], salary: 50000, classesAssigned: 0 }),
+  mkStaff({ id: "stf_001", firstName: "John", lastName: "Smith", email: "john.smith@greenwood.edu", phone: "+15551112222", gender: "male", dateOfBirth: "1985-03-12", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Mathematics", hireDate: "2018-08-01", reportsToId: "stf_005", gradeLevel: "T3", subjects: ["Algebra", "Geometry", "Calculus"], emergencyContact: { name: "Mary Smith", relationship: "Spouse", phone: "+15551112223" } }),
+  mkStaff({ id: "stf_002", firstName: "Emily", lastName: "Davis", email: "emily.davis@greenwood.edu", phone: "+15552223333", gender: "female", dateOfBirth: "1990-07-21", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "English", hireDate: "2019-08-15", reportsToId: "stf_005", gradeLevel: "T2", subjects: ["Literature", "Creative Writing", "Grammar"] }),
+  mkStaff({ id: "stf_003", firstName: "Michael", lastName: "Lee", email: "michael.lee@greenwood.edu", phone: "+15553334444", gender: "male", dateOfBirth: "1980-11-02", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Science", hireDate: "2015-08-01", reportsToId: "stf_005", gradeLevel: "M2", subjects: ["Physics", "Chemistry"], responsibilities: [{ designation: "Head of Department", allowanceCode: "HOD", startDate: "2021-09-01" }] }),
+  mkStaff({ id: "stf_004", firstName: "Sarah", lastName: "Taylor", email: "sarah.taylor@greenwood.edu", phone: "+15554445555", gender: "female", designation: "Counselor", staffCategory: "support", isTeacher: false, permissionRole: "registrar", department: "Student Services", hireDate: "2020-01-15", reportsToId: "stf_005", gradeLevel: "S2", subjects: [], responsibilities: [{ designation: "Safeguarding Lead", allowanceCode: "DSL", startDate: "2022-01-10" }] }),
+  mkStaff({ id: "stf_005", title: "Dr", firstName: "David", lastName: "Anderson", email: "david.anderson@greenwood.edu", phone: "+15555556666", gender: "male", dateOfBirth: "1972-05-30", designation: "Administrator", staffCategory: "support", isTeacher: false, permissionRole: "school_admin", department: "Administration", hireDate: "2017-06-01", reportsToId: null, gradeLevel: "M3", subjects: [] }),
+  mkStaff({ id: "stf_006", firstName: "Jennifer", lastName: "Wilson", email: "jennifer.wilson@greenwood.edu", phone: "+15556667777", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "History", hireDate: "2021-08-15", reportsToId: "stf_005", gradeLevel: "T2", subjects: ["World History", "US History", "Civics"], responsibilities: [{ designation: "Exam Officer", allowanceCode: "EXO", startDate: "2024-09-01" }] }),
+  mkStaff({ id: "stf_007", firstName: "Robert", lastName: "Brown", email: "robert.brown@greenwood.edu", phone: "+15557778888", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Physical Education", hireDate: "2016-08-01", reportsToId: "stf_005", gradeLevel: "T2", subjects: ["Physical Education", "Health"], responsibilities: [{ designation: "Games Master", allowanceCode: "GAMES", startDate: "2018-09-01" }] }),
+  mkStaff({ id: "stf_008", firstName: "Lisa", lastName: "Martinez", email: "lisa.martinez@greenwood.edu", phone: "+15558889999", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Art", hireDate: "2019-01-10", reportsToId: "stf_005", gradeLevel: "T2", subjects: ["Visual Arts", "Art History"] }),
+  mkStaff({ id: "stf_009", firstName: "James", lastName: "Garcia", email: "james.garcia@greenwood.edu", phone: "+15559990000", gender: "male", designation: "IT Support", staffCategory: "support", isTeacher: false, permissionRole: "support", department: "Technology", hireDate: "2022-03-01", reportsToId: "stf_005", gradeLevel: "S2", subjects: [] }),
+  mkStaff({ id: "stf_010", firstName: "Amanda", lastName: "Thompson", email: "amanda.thompson@greenwood.edu", phone: "+15550001111", gender: "female", designation: "Librarian", staffCategory: "support", isTeacher: false, permissionRole: "support", department: "Library", hireDate: "2018-02-15", reportsToId: "stf_005", gradeLevel: "S1", subjects: [] }),
+  mkStaff({ id: "stf_011", firstName: "Christopher", lastName: "Moore", email: "christopher.moore@greenwood.edu", phone: "+15551110000", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Music", hireDate: "2020-08-15", reportsToId: "stf_005", gradeLevel: "T2", subjects: ["Band", "Choir", "Music Theory"], contractType: "temporary", fte: 0.6 }),
+  mkStaff({ id: "stf_012", firstName: "Patricia", lastName: "White", email: "patricia.white@greenwood.edu", phone: "+15552221111", gender: "female", designation: "Nurse", staffCategory: "support", isTeacher: false, permissionRole: "support", department: "Health Services", hireDate: "2017-09-01", reportsToId: "stf_005", gradeLevel: "S1", subjects: [] }),
 
   // --- Expanded roster: realistic department clustering + employment variety ---
-  mkStaff({ id: "stf_013", firstName: "Daniel", lastName: "Okafor", email: "daniel.okafor@greenwood.edu", phone: "+15553120013", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Mathematics", hireDate: "2019-09-01", reportsToId: "stf_005", gradeBand: "T2", subjects: ["Mathematics"], salary: 60000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_014", firstName: "Grace", lastName: "Bello", email: "grace.bello@greenwood.edu", phone: "+15553120014", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Mathematics", hireDate: "2021-09-01", reportsToId: "stf_005", gradeBand: "T1", subjects: ["Mathematics"], salary: 36000, classesAssigned: 0, employmentType: "part_time", ftePercent: 60 }),
-  mkStaff({ id: "stf_015", firstName: "Aisha", lastName: "Suleiman", email: "aisha.suleiman@greenwood.edu", phone: "+15553120015", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "English", hireDate: "2018-09-01", reportsToId: "stf_005", gradeBand: "T2", subjects: ["English Studies", "Literature"], salary: 58000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_016", firstName: "Mark", lastName: "Thompson", email: "mark.thompson@greenwood.edu", phone: "+15553120016", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "English", hireDate: "2022-09-01", reportsToId: "stf_005", gradeBand: "T1", subjects: ["English Studies"], salary: 52000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_017", firstName: "Ngozi", lastName: "Eze", email: "ngozi.eze@greenwood.edu", phone: "+15553120017", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Science", hireDate: "2017-09-01", reportsToId: "stf_003", gradeBand: "T2", subjects: ["Physics"], salary: 61000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_018", firstName: "Samuel", lastName: "Adeyemi", email: "samuel.adeyemi@greenwood.edu", phone: "+15553120018", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Science", hireDate: "2016-09-01", reportsToId: "stf_003", gradeBand: "T2", subjects: ["Chemistry"], salary: 62000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_019", firstName: "Fatima", lastName: "Yusuf", email: "fatima.yusuf@greenwood.edu", phone: "+15553120019", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Science", hireDate: "2020-09-01", reportsToId: "stf_003", gradeBand: "T1", subjects: ["Biology"], salary: 55000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_020", firstName: "Peter", lastName: "Nwosu", email: "peter.nwosu@greenwood.edu", phone: "+15553120020", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "History", hireDate: "2019-01-10", reportsToId: "stf_005", gradeBand: "T2", subjects: ["History", "Government"], salary: 54000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_021", firstName: "Linda", lastName: "Effiong", email: "linda.effiong@greenwood.edu", phone: "+15553120021", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Physical Education", hireDate: "2021-09-01", reportsToId: "stf_005", gradeBand: "T1", subjects: ["Physical & Health Education"], salary: 40000, classesAssigned: 0, employmentType: "term_time" }),
-  mkStaff({ id: "stf_022", firstName: "Tunde", lastName: "Bakare", email: "tunde.bakare@greenwood.edu", phone: "+15553120022", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Art", hireDate: "2020-01-15", reportsToId: "stf_005", gradeBand: "T1", subjects: ["Cultural & Creative Arts"], salary: 30000, classesAssigned: 0, employmentType: "part_time", ftePercent: 50 }),
-  mkStaff({ id: "stf_023", firstName: "Marie", lastName: "Laurent", email: "marie.laurent@greenwood.edu", phone: "+15553120023", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "English", hireDate: "2018-09-01", reportsToId: "stf_005", gradeBand: "T2", subjects: ["French"], salary: 57000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_024", firstName: "Yetunde", lastName: "Ade", email: "yetunde.ade@greenwood.edu", phone: "+15553120024", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "English", hireDate: "2022-09-01", reportsToId: "stf_005", gradeBand: "T1", subjects: ["Yoruba"], salary: 50000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_025", firstName: "Kevin", lastName: "Mensah", email: "kevin.mensah@greenwood.edu", phone: "+15553120025", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Technology", hireDate: "2026-01-15", reportsToId: "stf_005", gradeBand: "T1", subjects: ["Computer Studies"], salary: 52000, classesAssigned: 0, employmentStatus: "onboarding" }),
-  mkStaff({ id: "stf_026", firstName: "Rachel", lastName: "Adamu", email: "rachel.adamu@greenwood.edu", phone: "+15553120026", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Mathematics", hireDate: "2026-02-01", reportsToId: "stf_005", gradeBand: "T1", subjects: ["Mathematics"], salary: 45000, classesAssigned: 0, employmentType: "contract", employmentStatus: "onboarding" }),
-  mkStaff({ id: "stf_027", firstName: "Olu", lastName: "Adekunle", email: "olu.adekunle@greenwood.edu", phone: "+15553120027", gender: "male", designation: "Vice Principal", staffCategory: "support", isTeacher: false, permissionRole: "school_admin", department: "Administration", hireDate: "2014-08-01", reportsToId: "stf_005", gradeBand: "M3", subjects: [], salary: 75000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_028", firstName: "Chioma", lastName: "Okeke", email: "chioma.okeke@greenwood.edu", phone: "+15553120028", gender: "female", designation: "Bursar", staffCategory: "support", isTeacher: false, permissionRole: "bursar", department: "Administration", hireDate: "2016-03-01", reportsToId: "stf_005", gradeBand: "M2", subjects: [], salary: 68000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_029", firstName: "Helen", lastName: "Park", email: "helen.park@greenwood.edu", phone: "+15553120029", gender: "female", designation: "Registrar", staffCategory: "support", isTeacher: false, permissionRole: "registrar", department: "Administration", hireDate: "2019-05-01", reportsToId: "stf_005", gradeBand: "S2", subjects: [], salary: 52000, classesAssigned: 0 }),
-  mkStaff({ id: "stf_030", firstName: "Ibrahim", lastName: "Sani", email: "ibrahim.sani@greenwood.edu", phone: "+15553120030", gender: "male", designation: "Facilities Officer", staffCategory: "support", isTeacher: false, permissionRole: "support", department: "Administration", hireDate: "2018-02-01", reportsToId: "stf_005", gradeBand: "S1", subjects: [], salary: 38000, classesAssigned: 0 }),
+  mkStaff({ id: "stf_013", firstName: "Daniel", lastName: "Okafor", email: "daniel.okafor@greenwood.edu", phone: "+2348031200013", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Mathematics", hireDate: "2019-09-01", reportsToId: "stf_005", gradeLevel: "GL 08", employer: "government_board", subjects: ["Mathematics"] }),
+  mkStaff({ id: "stf_014", firstName: "Grace", lastName: "Bello", email: "grace.bello@greenwood.edu", phone: "+2348031200014", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Mathematics", hireDate: "2021-09-01", reportsToId: "stf_005", gradeLevel: "T1", subjects: ["Mathematics"], contractType: "temporary", fte: 0.6 }),
+  mkStaff({ id: "stf_015", title: "Mrs", firstName: "Aisha", lastName: "Suleiman", email: "aisha.suleiman@greenwood.edu", phone: "+2348031200015", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "English", hireDate: "2018-09-01", reportsToId: "stf_005", gradeLevel: "T2", subjects: ["English Studies", "Literature"], responsibilities: [{ designation: "Head of Department", allowanceCode: "HOD", startDate: "2023-09-01" }] }),
+  mkStaff({ id: "stf_016", firstName: "Mark", lastName: "Thompson", email: "mark.thompson@greenwood.edu", phone: "+2348031200016", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "English", hireDate: "2022-09-01", reportsToId: "stf_005", gradeLevel: "T1", subjects: ["English Studies"], employer: "pta" }),
+  mkStaff({ id: "stf_017", firstName: "Ngozi", lastName: "Eze", email: "ngozi.eze@greenwood.edu", phone: "+2348031200017", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Science", hireDate: "2017-09-01", reportsToId: "stf_003", gradeLevel: "T2", subjects: ["Physics"] }),
+  mkStaff({ id: "stf_018", firstName: "Samuel", lastName: "Adeyemi", email: "samuel.adeyemi@greenwood.edu", phone: "+2348031200018", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Science", hireDate: "2016-09-01", reportsToId: "stf_003", gradeLevel: "T2", subjects: ["Chemistry"] }),
+  mkStaff({ id: "stf_019", firstName: "Fatima", lastName: "Yusuf", email: "fatima.yusuf@greenwood.edu", phone: "+2348031200019", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Science", hireDate: "2020-09-01", reportsToId: "stf_003", gradeLevel: "T1", subjects: ["Biology"] }),
+  mkStaff({ id: "stf_020", firstName: "Peter", lastName: "Nwosu", email: "peter.nwosu@greenwood.edu", phone: "+2348031200020", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "History", hireDate: "2019-01-10", reportsToId: "stf_005", gradeLevel: "T2", subjects: ["History", "Government"] }),
+  mkStaff({ id: "stf_021", firstName: "Linda", lastName: "Effiong", email: "linda.effiong@greenwood.edu", phone: "+2348031200021", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Physical Education", hireDate: "2021-09-01", reportsToId: "stf_005", gradeLevel: "T1", subjects: ["Physical & Health Education"], isTermTimeOnly: true }),
+  mkStaff({ id: "stf_022", firstName: "Tunde", lastName: "Bakare", email: "tunde.bakare@greenwood.edu", phone: "+2348031200022", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Art", hireDate: "2020-01-15", reportsToId: "stf_005", gradeLevel: "T1", subjects: ["Cultural & Creative Arts"], contractType: "temporary", fte: 0.5 }),
+  mkStaff({ id: "stf_023", firstName: "Marie", lastName: "Laurent", email: "marie.laurent@greenwood.edu", phone: "+2348031200023", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "English", hireDate: "2018-09-01", reportsToId: "stf_005", gradeLevel: "T2", subjects: ["French"] }),
+  mkStaff({ id: "stf_024", firstName: "Yetunde", lastName: "Ade", email: "yetunde.ade@greenwood.edu", phone: "+2348031200024", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "English", hireDate: "2022-09-01", reportsToId: "stf_005", gradeLevel: "T1", subjects: ["Yoruba"] }),
+  mkStaff({ id: "stf_025", firstName: "Kevin", lastName: "Mensah", email: "kevin.mensah@greenwood.edu", phone: "+2348031200025", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Technology", hireDate: "2026-01-15", reportsToId: "stf_005", gradeLevel: "T1", subjects: ["Computer Studies"], statusOverride: "onboarding", probationEndDate: "2027-01-14" }),
+  mkStaff({ id: "stf_026", firstName: "Rachel", lastName: "Adamu", email: "rachel.adamu@greenwood.edu", phone: "+2348031200026", gender: "female", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Mathematics", hireDate: "2026-02-01", reportsToId: "stf_005", gradeLevel: "T1", subjects: ["Mathematics"], contractType: "fixed_term", endDate: "2027-01-31", statusOverride: "onboarding" }),
+  mkStaff({ id: "stf_027", firstName: "Olu", lastName: "Adekunle", email: "olu.adekunle@greenwood.edu", phone: "+2348031200027", gender: "male", designation: "Vice Principal", staffCategory: "support", isTeacher: false, permissionRole: "school_admin", department: "Administration", hireDate: "2014-08-01", reportsToId: "stf_005", gradeLevel: "M3", subjects: [] }),
+  mkStaff({ id: "stf_028", firstName: "Chioma", lastName: "Okeke", email: "chioma.okeke@greenwood.edu", phone: "+2348031200028", gender: "female", designation: "Bursar", staffCategory: "support", isTeacher: false, permissionRole: "bursar", department: "Administration", hireDate: "2016-03-01", reportsToId: "stf_005", gradeLevel: "M2", subjects: [] }),
+  mkStaff({ id: "stf_029", firstName: "Helen", lastName: "Park", email: "helen.park@greenwood.edu", phone: "+2348031200029", gender: "female", designation: "Registrar", staffCategory: "support", isTeacher: false, permissionRole: "registrar", department: "Administration", hireDate: "2019-05-01", reportsToId: "stf_005", gradeLevel: "S2", subjects: [] }),
+  mkStaff({ id: "stf_030", firstName: "Ibrahim", lastName: "Sani", email: "ibrahim.sani@greenwood.edu", phone: "+2348031200030", gender: "male", designation: "Facilities Officer", staffCategory: "support", isTeacher: false, permissionRole: "support", department: "Administration", hireDate: "2018-02-01", reportsToId: "stf_005", gradeLevel: "S1", subjects: [], suspendedUntil: "2026-10-12" }),
+
+  // --- Patterns the amendment exists for ---
+  mkStaff({ id: "stf_031", firstName: "Musa", lastName: "Abdullahi", email: null, phone: "+2348031200031", gender: "male", designation: "Driver", staffCategory: "support", isTeacher: false, permissionRole: "support", department: "Transport", hireDate: "2019-04-01", reportsToId: "stf_030", subjects: [], contractType: "casual", emergencyContact: { name: "Hauwa Abdullahi", relationship: "Wife", phone: "+2348031200131" } }),
+  mkStaff({ id: "stf_032", firstName: "Blessing", lastName: "Okoro", email: null, phone: "+2348031200032", gender: "female", designation: "Cleaner", staffCategory: "support", isTeacher: false, permissionRole: "support", department: "Facilities", hireDate: "2023-01-09", reportsToId: "stf_030", subjects: [], contractType: "casual", canLogin: false }),
+  mkStaff({ id: "stf_033", firstName: "Chukwuemeka", lastName: "Nnamdi", preferredName: "Emeka Nnamdi", email: "emeka.nnamdi@greenwood.edu", phone: "+2348031200033", gender: "male", dateOfBirth: "2001-06-18", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Science", hireDate: "2026-03-02", reportsToId: "stf_003", subjects: ["Biology"], contractType: "corps_member", employer: "nysc", endDate: "2027-02-28" }),
+  mkStaff({ id: "stf_034", title: "Rev. Fr.", firstName: "Anthony", lastName: "Obi", email: "anthony.obi@greenwood.edu", phone: "+2348031200034", gender: "male", designation: "Chaplain", staffCategory: "support", isTeacher: false, permissionRole: "support", department: "Pastoral Care", hireDate: "2022-09-01", reportsToId: "stf_005", subjects: [], contractType: "volunteer", employer: "mission" }),
+  mkStaff({ id: "stf_035", firstName: "Funke", lastName: "Alabi", email: null, phone: "+2348031200035", gender: "female", designation: "Supply Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "English", hireDate: "2026-09-21", reportsToId: "stf_015", subjects: ["English Studies"], contractType: "supply", employer: "agency", endDate: "2026-12-18" }),
+  mkStaff({ id: "stf_036", firstName: "Oluwaseun", lastName: "Fashola", email: "seun.fashola@greenwood.edu", phone: "+2348031200036", gender: "male", designation: "Teacher", staffCategory: "academic", isTeacher: true, permissionRole: "teacher", department: "Mathematics", hireDate: "2015-09-01", reportsToId: "stf_005", gradeLevel: "T3", subjects: ["Mathematics"], exit: { date: "2026-08-31", reason: "resignation" } }),
 ];
 
-// Staff credentials (license, work permit/visa, background check, medical,
-// contract) with expiry dates. Statuses are stored for the demo; once live they
-// derive from expiryDate via credentialStatusFor(). Dates relative to mid-2026.
-export const staffCredentials: StaffCredential[] = [
-  { id: "cred_001", staffId: "stf_001", type: "teaching_license", name: "QTS", issuingAuthority: "Teaching Regulation Agency", number: "QTS-2018-4471", issueDate: "2018-07-01", expiryDate: null, status: "valid" },
-  { id: "cred_002", staffId: "stf_001", type: "background_check", name: "DBS", issuingAuthority: "Disclosure and Barring Service", number: "DBS-99102", issueDate: "2023-07-10", expiryDate: "2026-07-15", status: "expiring" },
-  { id: "cred_003", staffId: "stf_003", type: "teaching_license", name: "State Educator ID", issuingAuthority: "State Board of Education", number: "SEID-553120", issueDate: "2015-06-01", expiryDate: "2028-01-01", status: "valid" },
-  { id: "cred_004", staffId: "stf_003", type: "work_permit", name: "H-1B Visa", issuingAuthority: "USCIS", number: "H1B-22-771", issueDate: "2023-06-20", expiryDate: "2026-06-20", status: "expiring" },
-  { id: "cred_005", staffId: "stf_006", type: "teaching_license", name: "State Educator ID", issuingAuthority: "State Board of Education", number: "SEID-661204", issueDate: "2021-07-15", expiryDate: "2026-03-01", status: "expired" },
-  { id: "cred_006", staffId: "stf_009", type: "contract", name: "Employment contract", issuingAuthority: "Greenwood Academy", number: "CT-2022-009", issueDate: "2022-03-01", expiryDate: "2026-08-31", status: "expiring" },
-  { id: "cred_007", staffId: "stf_012", type: "medical", name: "First Aid certification", issuingAuthority: "Red Cross", number: "FA-2024-112", issueDate: "2024-12-01", expiryDate: "2026-12-01", status: "valid" },
-  { id: "cred_008", staffId: "stf_011", type: "teaching_license", name: "QTS", issuingAuthority: "Teaching Regulation Agency", number: "QTS-2020-8830", issueDate: "2020-07-15", expiryDate: null, status: "valid" },
+/** Lower-cased work email -> staff id, for import matching and manager lookups. */
+export const staffIdByEmail = new Map(staff.filter((s) => s.email).map((s) => [s.email!.toLowerCase(), s.id]));
+
+// ---------------------------------------------------------------------------
+// Credentials, split four ways (docs/12A). Status is never stored.
+// ---------------------------------------------------------------------------
+export const educationAwards: EducationAward[] = [
+  { id: "awd_001", staffId: "stf_001", award: "bed", subject: "Mathematics Education", institution: "University of Lagos", year: 2008, classOfAward: "Second Class Upper", verifiedById: "stf_029", verifiedAt: "2018-08-01" },
+  { id: "awd_002", staffId: "stf_003", award: "msc", subject: "Physics", institution: "University of Ibadan", year: 2012, classOfAward: null, verifiedById: "stf_029", verifiedAt: "2015-08-01" },
+  { id: "awd_003", staffId: "stf_013", award: "nce", subject: "Mathematics", institution: "Federal College of Education, Abeokuta", year: 2016, classOfAward: "Merit", verifiedById: "stf_029", verifiedAt: "2019-09-01" },
+  { id: "awd_004", staffId: "stf_033", award: "bsc", subject: "Microbiology", institution: "University of Nigeria, Nsukka", year: 2025, classOfAward: "Second Class Upper", verifiedById: null, verifiedAt: null },
 ];
+
+export const professionalRegistrations: ProfessionalRegistration[] = [
+  { id: "reg_001", staffId: "stf_001", body: "qts", number: "QTS-2018-4471", category: null, validFrom: "2018-07-01", expiryDate: null, cpdCredits: null, verifiedById: "stf_029", verifiedAt: "2026-01-15" },
+  { id: "reg_002", staffId: "stf_003", body: "trcn", number: "TRCN/2015/553120", category: "B", validFrom: "2024-06-01", expiryDate: "2027-05-31", cpdCredits: 18, verifiedById: "stf_029", verifiedAt: "2026-01-15" },
+  { id: "reg_003", staffId: "stf_013", body: "trcn", number: "TRCN/2019/771202", category: "D", validFrom: "2023-10-01", expiryDate: "2026-09-30", cpdCredits: 6, verifiedById: "stf_029", verifiedAt: "2026-01-15" },
+  { id: "reg_004", staffId: "stf_015", body: "trcn", number: "TRCN/2018/612044", category: "C", validFrom: "2024-01-01", expiryDate: "2026-12-31", cpdCredits: 20, verifiedById: "stf_029", verifiedAt: "2026-01-15" },
+  { id: "reg_005", staffId: "stf_033", body: "trcn", number: "TRCN/2026/990313", category: "C", validFrom: "2026-02-01", expiryDate: "2029-01-31", cpdCredits: 0, verifiedById: null, verifiedAt: null },
+];
+
+export const vettingChecks: VettingCheck[] = [
+  { id: "chk_001", staffId: "stf_001", type: "dbs_enhanced", completedOn: "2023-07-10", checkedById: "stf_029", outcome: "clear", expiryDate: "2026-07-15", reference: "DBS-99102", agencyAssuranceReceivedOn: null },
+  { id: "chk_002", staffId: "stf_003", type: "right_to_work", completedOn: "2023-06-20", checkedById: "stf_029", outcome: "clear", expiryDate: "2026-06-20", reference: "H1B-22-771", agencyAssuranceReceivedOn: null },
+  { id: "chk_003", staffId: "stf_013", type: "police_character", completedOn: "2025-01-15", checkedById: "stf_029", outcome: "clear", expiryDate: null, reference: "NPF/LAG/2025/0441", agencyAssuranceReceivedOn: null },
+  { id: "chk_004", staffId: "stf_013", type: "medical_fitness", completedOn: "2025-01-20", checkedById: "stf_012", outcome: "clear", expiryDate: "2027-01-20", reference: null, agencyAssuranceReceivedOn: null },
+  { id: "chk_005", staffId: "stf_012", type: "medical_fitness", completedOn: "2024-09-01", checkedById: "stf_029", outcome: "clear", expiryDate: "2026-11-25", reference: null, agencyAssuranceReceivedOn: null },
+  { id: "chk_006", staffId: "stf_033", type: "identity", completedOn: "2026-03-02", checkedById: "stf_029", outcome: "clear", expiryDate: null, reference: "NYSC call-up sighted", agencyAssuranceReceivedOn: null },
+  { id: "chk_007", staffId: "stf_033", type: "police_character", completedOn: "2026-03-02", checkedById: null, outcome: "pending", expiryDate: null, reference: null, agencyAssuranceReceivedOn: null },
+  { id: "chk_008", staffId: "stf_035", type: "identity", completedOn: "2026-09-21", checkedById: "stf_029", outcome: "clear", expiryDate: null, reference: null, agencyAssuranceReceivedOn: "2026-09-19" },
+  { id: "chk_009", staffId: "stf_031", type: "identity", completedOn: "2019-04-01", checkedById: "stf_029", outcome: "clear", expiryDate: null, reference: "Driver's licence sighted", agencyAssuranceReceivedOn: null },
+  { id: "chk_010", staffId: "stf_004", type: "safeguarding_policy_signed", completedOn: "2026-09-07", checkedById: "stf_029", outcome: "clear", expiryDate: "2027-09-06", reference: null, agencyAssuranceReceivedOn: null },
+];
+
+export const trainingRecords: TrainingRecord[] = [
+  { id: "trn_001", staffId: "stf_004", type: "safeguarding", provider: "Lagos State Ministry of Education", date: "2025-10-01", expiryDate: "2026-09-30", hours: 6, credits: null, certificateRef: null, verifiedById: "stf_029" },
+  { id: "trn_002", staffId: "stf_012", type: "first_aid", provider: "Nigerian Red Cross", date: "2024-03-10", expiryDate: "2027-03-09", hours: 16, credits: null, certificateRef: "NRC-2024-1183", verifiedById: "stf_029" },
+  { id: "trn_003", staffId: "stf_013", type: "mcpd", provider: "TRCN approved provider", date: "2026-04-12", expiryDate: null, hours: 8, credits: 6, certificateRef: null, verifiedById: null },
+  { id: "trn_004", staffId: "stf_001", type: "safeguarding", provider: "School", date: "2026-09-07", expiryDate: "2027-09-06", hours: 3, credits: null, certificateRef: null, verifiedById: "stf_029" },
+  { id: "trn_005", staffId: "stf_033", type: "induction", provider: "School", date: "2026-03-02", expiryDate: null, hours: 4, credits: null, certificateRef: null, verifiedById: "stf_029" },
+];
+
+// ---------------------------------------------------------------------------
+// Absences (the staff_absence seam). "Away today" reads approved rows.
+// ---------------------------------------------------------------------------
+export const staffAbsences: StaffAbsence[] = [
+  { id: "abs_001", staffId: "stf_011", category: "OTH", localReason: "Annual leave", startDate: "2026-10-01", endDate: "2026-10-31", halfDayValue: 1, status: "approved", approverId: "stf_005", certificateRef: null, coverOnly: false },
+  { id: "abs_002", staffId: "stf_017", category: "SIC", localReason: "Malaria", startDate: "2026-10-03", endDate: "2026-10-06", halfDayValue: 1, status: "approved", approverId: "stf_003", certificateRef: "MED-2026-0917", coverOnly: false },
+  { id: "abs_003", staffId: "stf_006", category: "OTH", localReason: "WAEC invigilation briefing", startDate: "2026-10-04", endDate: "2026-10-04", halfDayValue: 0.5, status: "approved", approverId: "stf_005", certificateRef: null, coverOnly: true },
+  { id: "abs_004", staffId: "stf_020", category: "TRN", localReason: "TRCN MCPD workshop", startDate: "2026-10-13", endDate: "2026-10-14", halfDayValue: 1, status: "pending", approverId: null, certificateRef: null, coverOnly: false },
+];
+
+/** Full record for the detail page. */
+export function staffDetail(id: string): StaffDetail | null {
+  const header = staff.find((s) => s.id === id);
+  if (!header) return null;
+  return {
+    ...header,
+    contracts: staffContracts.filter((c) => c.staffId === id),
+    events: employmentEvents.filter((e) => e.staffId === id),
+    awards: educationAwards.filter((a) => a.staffId === id),
+    registrations: professionalRegistrations.filter((r) => r.staffId === id),
+    checks: vettingChecks.filter((c) => c.staffId === id),
+    training: trainingRecords.filter((t) => t.staffId === id),
+    identifiers: id === "stf_013" ? [{ type: "state_payroll_number", valueMasked: "****7731", issuer: "Lagos State", validTo: null }, { type: "nin", valueMasked: "*******2210", issuer: "NIMC", validTo: null }] : [],
+    consents: [{ purpose: "id_card", grantedAt: header.hireDate, withdrawnAt: null, basis: "legitimate_interest" }],
+  };
+}
 
 // ============================================
 // Classes/Grades (Extended)
 // ============================================
-import type { Class, ClassSubject, ClassEnrollment, ClassSubjectEnrollment } from "@/types/class";
+import type { Class, ClassSubject, ClassEnrollment, ClassSubjectEnrollment, TeachingAssignment, TeachingSet } from "@/types/class";
 
 export const classes: Class[] = [
   // Nursery
-  { id: "cls_001", name: "Nursery 1", gradeLevel: "Nursery 1", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_002", room: "N1", capacity: 25, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Emily Davis", schedule: "Mon-Fri 8:00-12:30" },
-  { id: "cls_002", name: "Nursery 2", gradeLevel: "Nursery 2", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_002", room: "N2", capacity: 25, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Emily Davis", schedule: "Mon-Fri 8:00-12:30" },
-  { id: "cls_003", name: "Nursery 3", gradeLevel: "Nursery 3", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_004", room: "N3", capacity: 25, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Sarah Wilson", schedule: "Mon-Fri 8:00-12:30" },
+  { id: "cls_001", name: "Nursery 1", gradeLevel: "Nursery 1", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_002", teachingModel: "self_contained", room: "N1", capacity: 25, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Emily Davis", schedule: "Mon-Fri 8:00-12:30" },
+  { id: "cls_002", name: "Nursery 2", gradeLevel: "Nursery 2", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_002", teachingModel: "self_contained", room: "N2", capacity: 25, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Emily Davis", schedule: "Mon-Fri 8:00-12:30" },
+  { id: "cls_003", name: "Nursery 3", gradeLevel: "Nursery 3", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_021", teachingModel: "self_contained", room: "N3", capacity: 25, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Linda Effiong", schedule: "Mon-Fri 8:00-12:30" },
 
   // Primary
-  { id: "cls_004", name: "Primary 1A", gradeLevel: "Primary 1", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_001", room: "P1A", capacity: 30, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "John Smith", schedule: "Mon-Fri 8:00-2:00" },
-  { id: "cls_005", name: "Primary 1B", gradeLevel: "Primary 1", arm: "B", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_002", room: "P1B", capacity: 30, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Emily Davis", schedule: "Mon-Fri 8:00-2:00" },
-  { id: "cls_006", name: "Primary 4A", gradeLevel: "Primary 4", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_003", room: "P4A", capacity: 32, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Michael Lee", schedule: "Mon-Fri 8:00-2:30" },
-  { id: "cls_007", name: "Primary 4B", gradeLevel: "Primary 4", arm: "B", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_004", room: "P4B", capacity: 32, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Sarah Wilson", schedule: "Mon-Fri 8:00-2:30" },
-  { id: "cls_008", name: "Primary 6A", gradeLevel: "Primary 6", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_005", room: "P6A", capacity: 32, status: "active", studentCount: 2, averageGrade: null, averageAttendance: null, students: 2, avgGrade: 0, attendanceRate: 0, teacher: "David Brown", schedule: "Mon-Fri 8:00-2:30" },
+  { id: "cls_004", name: "Primary 1A", gradeLevel: "Primary 1", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_001", teachingModel: "self_contained", room: "P1A", capacity: 30, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "John Smith", schedule: "Mon-Fri 8:00-2:00" },
+  { id: "cls_005", name: "Primary 1B", gradeLevel: "Primary 1", arm: "B", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_002", teachingModel: "self_contained", room: "P1B", capacity: 30, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Emily Davis", schedule: "Mon-Fri 8:00-2:00" },
+  { id: "cls_006", name: "Primary 4A", gradeLevel: "Primary 4", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_003", teachingModel: "self_contained", room: "P4A", capacity: 32, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Michael Lee", schedule: "Mon-Fri 8:00-2:30" },
+  { id: "cls_007", name: "Primary 4B", gradeLevel: "Primary 4", arm: "B", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_022", teachingModel: "self_contained", room: "P4B", capacity: 32, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Tunde Bakare", schedule: "Mon-Fri 8:00-2:30" },
+  { id: "cls_008", name: "Primary 6A", gradeLevel: "Primary 6", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_020", teachingModel: "self_contained", room: "P6A", capacity: 32, status: "active", studentCount: 2, averageGrade: null, averageAttendance: null, students: 2, avgGrade: 0, attendanceRate: 0, teacher: "Peter Nwosu", schedule: "Mon-Fri 8:00-2:30" },
 
   // JSS
-  { id: "cls_009", name: "JSS 1A", gradeLevel: "JSS 1", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_006", room: "J1A", capacity: 35, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Lisa Martinez", schedule: "Mon-Fri 8:00-3:00" },
-  { id: "cls_010", name: "JSS 1B", gradeLevel: "JSS 1", arm: "B", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_007", room: "J1B", capacity: 35, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Robert Taylor", schedule: "Mon-Fri 8:00-3:00" },
-  { id: "cls_011", name: "JSS 2A", gradeLevel: "JSS 2", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_008", room: "J2A", capacity: 35, status: "active", studentCount: 2, averageGrade: null, averageAttendance: null, students: 2, avgGrade: 0, attendanceRate: 0, teacher: "Jennifer Anderson", schedule: "Mon-Fri 8:00-3:00" },
-  { id: "cls_012", name: "JSS 2B", gradeLevel: "JSS 2", arm: "B", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_009", room: "J2B", capacity: 35, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "James Thomas", schedule: "Mon-Fri 8:00-3:00" },
-  { id: "cls_013", name: "JSS 3A", gradeLevel: "JSS 3", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_010", room: "J3A", capacity: 35, status: "active", studentCount: 2, averageGrade: null, averageAttendance: null, students: 2, avgGrade: 0, attendanceRate: 0, teacher: "Patricia Jackson", schedule: "Mon-Fri 8:00-3:00" },
+  { id: "cls_009", name: "JSS 1A", gradeLevel: "JSS 1", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_006", teachingModel: "form_plus_specialists", room: "J1A", capacity: 35, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Lisa Martinez", schedule: "Mon-Fri 8:00-3:00" },
+  { id: "cls_010", name: "JSS 1B", gradeLevel: "JSS 1", arm: "B", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_007", teachingModel: "form_plus_specialists", room: "J1B", capacity: 35, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Robert Taylor", schedule: "Mon-Fri 8:00-3:00" },
+  { id: "cls_011", name: "JSS 2A", gradeLevel: "JSS 2", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_008", teachingModel: "form_plus_specialists", room: "J2A", capacity: 35, status: "active", studentCount: 2, averageGrade: null, averageAttendance: null, students: 2, avgGrade: 0, attendanceRate: 0, teacher: "Jennifer Anderson", schedule: "Mon-Fri 8:00-3:00" },
+  { id: "cls_012", name: "JSS 2B", gradeLevel: "JSS 2", arm: "B", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_023", teachingModel: "form_plus_specialists", room: "J2B", capacity: 35, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Marie Laurent", schedule: "Mon-Fri 8:00-3:00" },
+  { id: "cls_013", name: "JSS 3A", gradeLevel: "JSS 3", arm: "A", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_024", teachingModel: "form_plus_specialists", room: "J3A", capacity: 35, status: "active", studentCount: 2, averageGrade: null, averageAttendance: null, students: 2, avgGrade: 0, attendanceRate: 0, teacher: "Yetunde Ade", schedule: "Mon-Fri 8:00-3:00" },
 
   // SSS
-  { id: "cls_014", name: "SS1 Science A", gradeLevel: "SSS 1", arm: "A", stream: "Science", academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_011", room: "S1SciA", capacity: 30, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Christopher White", schedule: "Mon-Fri 8:00-3:30" },
-  { id: "cls_015", name: "SS1 Arts A", gradeLevel: "SSS 1", arm: "A", stream: "Arts", academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_012", room: "S1ArtA", capacity: 30, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Linda Harris", schedule: "Mon-Fri 8:00-3:30" },
-  { id: "cls_016", name: "SS2 Science A", gradeLevel: "SSS 2", arm: "A", stream: "Science", academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_003", room: "S2SciA", capacity: 30, status: "active", studentCount: 2, averageGrade: null, averageAttendance: null, students: 2, avgGrade: 0, attendanceRate: 0, teacher: "Michael Lee", schedule: "Mon-Fri 8:00-3:30" },
-  { id: "cls_017", name: "SS3 Science A", gradeLevel: "SSS 3", arm: "A", stream: "Science", academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_001", room: "S3SciA", capacity: 30, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "John Smith", schedule: "Mon-Fri 8:00-4:00" },
+  { id: "cls_014", name: "SS1 Science A", gradeLevel: "SSS 1", arm: "A", stream: "Science", academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_011", teachingModel: "specialists_only", room: "S1SciA", capacity: 30, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Christopher White", schedule: "Mon-Fri 8:00-3:30" },
+  { id: "cls_015", name: "SS1 Arts A", gradeLevel: "SSS 1", arm: "A", stream: "Arts", academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_012", teachingModel: "specialists_only", room: "S1ArtA", capacity: 30, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "Linda Harris", schedule: "Mon-Fri 8:00-3:30" },
+  { id: "cls_016", name: "SS2 Science A", gradeLevel: "SSS 2", arm: "A", stream: "Science", academicSession: "2025/2026", currentTerm: "Second", classTeacherId: null, teachingModel: "specialists_only", room: "S2SciA", capacity: 30, status: "active", studentCount: 2, averageGrade: null, averageAttendance: null, students: 2, avgGrade: 0, attendanceRate: 0, teacher: "No class teacher", schedule: "Mon-Fri 8:00-3:30" },
+  { id: "cls_017", name: "SS3 Science A", gradeLevel: "SSS 3", arm: "A", stream: "Science", academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "stf_001", teachingModel: "specialists_only", room: "S3SciA", capacity: 30, status: "active", studentCount: 1, averageGrade: null, averageAttendance: null, students: 1, avgGrade: 0, attendanceRate: 0, teacher: "John Smith", schedule: "Mon-Fri 8:00-4:00" },
 
   // A freshly-created draft class -- no teacher, subjects, or roster yet. Used
   // to demonstrate the "Set up this class" checklist; the cohort generator
   // skips non-active classes so it stays empty.
-  { id: "cls_018", name: "JSS 1C", gradeLevel: "JSS 1", arm: "C", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "", room: "TBD", capacity: 35, status: "draft", studentCount: 0, averageGrade: null, averageAttendance: null, students: 0, avgGrade: 0, attendanceRate: 0, teacher: "Unassigned", schedule: "Not set" },
+  { id: "cls_018", name: "JSS 1C", gradeLevel: "JSS 1", arm: "C", stream: null, academicSession: "2025/2026", currentTerm: "Second", classTeacherId: "", teachingModel: "form_plus_specialists", room: "TBD", capacity: 35, status: "draft", studentCount: 0, averageGrade: null, averageAttendance: null, students: 0, avgGrade: 0, attendanceRate: 0, teacher: "Unassigned", schedule: "Not set" },
 ];
 
 const PRIMARY_SUBJECTS = ["Mathematics", "English Studies", "Basic Science", "Social Studies", "Civic Education", "Computer Studies", "Christian Religious Studies", "Physical & Health Education"];
@@ -398,6 +571,7 @@ function classSubjectsFor(
       classId,
       subjectId,
       teacherIds: ids.filter((x): x is string => Boolean(x)),
+      teachingSetId: null,
       isCore: !electives.includes(subjectId),
     };
   });
@@ -432,10 +606,92 @@ export const classSubjects: ClassSubject[] = [
   ...classSubjectsFor("cls_017", SSS_SCIENCE_SUBJECTS, subjectTeacherPool, SSS_ELECTIVES),
 ];
 
-// Per-subject sub-rosters for non-core (elective) subjects. Empty in the demo
-// until the SSS elective-picking UI is built; the schema (and isCore flag
-// above) already model it so the backend can build to this shape.
-export const classSubjectEnrollments: ClassSubjectEnrollment[] = [];
+// ---------------------------------------------------------------------------
+// Teaching sets: the same elective taught once to students from several arms.
+// SS1 Further Mathematics is offered to Science A and, cross-stream, to Arts A.
+// ---------------------------------------------------------------------------
+export const teachingSets: TeachingSet[] = [
+  { id: "set_fm_ss1", subjectId: "Further Mathematics", name: "SS1 Further Mathematics set", academicSession: "2025/2026" },
+];
+{
+  const ss1Science = classSubjects.find((cs) => cs.classId === "cls_014" && cs.subjectId === "Further Mathematics");
+  if (ss1Science) ss1Science.teachingSetId = "set_fm_ss1";
+  classSubjects.push({ classId: "cls_015", subjectId: "Further Mathematics", teacherIds: [], teachingSetId: "set_fm_ss1", isCore: false });
+}
+
+// ---------------------------------------------------------------------------
+// Teaching assignments (docs/11A-TEACHING-MODEL-AMENDMENT.md)
+// ---------------------------------------------------------------------------
+// The subject plan above is turned into TeachingAssignment rows, the single
+// source of truth for who teaches what. Self-contained classes (nursery and
+// primary) get one system-managed row per subject for the class teacher. One
+// cover row and one ended row exercise the time window.
+const DEMO_SESSION_START = "2025-09-08";
+const DEMO_TODAY = new Date().toISOString().slice(0, 10);
+
+export const teachingAssignments: TeachingAssignment[] = (() => {
+  const rows: TeachingAssignment[] = [];
+  let n = 0;
+  const push = (r: Omit<TeachingAssignment, "id">) => rows.push({ id: `ta_${String(++n).padStart(3, "0")}`, ...r });
+  const classById = new Map(classes.map((c) => [c.id, c]));
+  const setsDone = new Set<string>();
+
+  for (const cs of classSubjects) {
+    const cls = classById.get(cs.classId);
+    if (!cls) continue;
+    if (cs.teachingSetId) {
+      // One assignment per set, carried by the first member row.
+      if (setsDone.has(cs.teachingSetId)) continue;
+      setsDone.add(cs.teachingSetId);
+      const staffId = cs.teacherIds[0] ?? "stf_013";
+      push({ classId: cs.classId, subjectId: cs.subjectId, staffId, role: "subject", teachingSetId: cs.teachingSetId, termId: null, startsOn: DEMO_SESSION_START, endsOn: null, periodsPerWeek: 3, source: "manual", notes: "Taught as one set across arms" });
+      continue;
+    }
+    if (cls.teachingModel === "self_contained") {
+      if (cls.classTeacherId) {
+        push({ classId: cs.classId, subjectId: cs.subjectId, staffId: cls.classTeacherId, role: "subject", teachingSetId: null, termId: null, startsOn: DEMO_SESSION_START, endsOn: null, periodsPerWeek: 5, source: "self_contained", notes: null });
+      }
+      continue;
+    }
+    cs.teacherIds.forEach((staffId, i) => {
+      push({ classId: cs.classId, subjectId: cs.subjectId, staffId, role: i === 0 ? "subject" : "co_teacher", teachingSetId: null, termId: null, startsOn: DEMO_SESSION_START, endsOn: null, periodsPerWeek: i === 0 ? 4 : 2, source: "manual", notes: null });
+    });
+  }
+
+  // Cover: the SS1 Science A Physics teacher is away for the second half of the
+  // term; their row is ended and a colleague covers to the end of October.
+  const physics = rows.find((r) => r.classId === "cls_014" && r.subjectId === "Physics" && r.role === "subject");
+  if (physics) {
+    physics.endsOn = "2026-09-19";
+    physics.notes = "On leave from 20 Sep 2026";
+    push({ classId: "cls_014", subjectId: "Physics", staffId: "stf_019", role: "cover", teachingSetId: null, termId: null, startsOn: "2026-09-20", endsOn: "2026-10-31", periodsPerWeek: 4, source: "manual", notes: `Covering for ${physics.staffId}` });
+  }
+  return rows;
+})();
+
+// Deprecated alias for the classes UI: active teachers per subject, derived
+// (a set's assignment applies to every member row).
+for (const cs of classSubjects) {
+  cs.teacherIds = teachingAssignments
+    .filter(
+      (a) =>
+        (cs.teachingSetId ? a.teachingSetId === cs.teachingSetId : a.classId === cs.classId && a.subjectId === cs.subjectId) &&
+        a.startsOn <= DEMO_TODAY &&
+        (a.endsOn === null || a.endsOn >= DEMO_TODAY)
+    )
+    .map((a) => a.staffId);
+}
+
+// Per-subject sub-rosters for non-core (elective) subjects. Every senior
+// student here offers Further Mathematics; the Arts student takes it through
+// the cross-stream set above.
+export const classSubjectEnrollments: ClassSubjectEnrollment[] = [
+  { classId: "cls_014", subjectId: "Further Mathematics", studentId: "std_015", status: "active" },
+  { classId: "cls_015", subjectId: "Further Mathematics", studentId: "std_016", status: "active" },
+  { classId: "cls_016", subjectId: "Further Mathematics", studentId: "std_017", status: "active" },
+  { classId: "cls_016", subjectId: "Further Mathematics", studentId: "std_030", status: "withdrawn" },
+  { classId: "cls_017", subjectId: "Further Mathematics", studentId: "std_019", status: "active" },
+];
 
 export const classEnrollments: ClassEnrollment[] = [
   { classId: "cls_001", studentId: "std_021", enrolledAt: "2025-01-10", exitedAt: null, status: "active" },
@@ -1875,6 +2131,30 @@ export const disciplineIncidents = [
 // Staff Leave Management
 // ============================================
 export const staffLeaveRequests = [
+  {
+    id: "lr_000",
+    staffId: "stf_011",
+    staffName: "Christopher Moore",
+    type: "annual" as const,
+    startDate: "2026-10-01",
+    endDate: "2026-10-31",
+    days: 22,
+    status: "approved" as const,
+    reason: "Demo: keeps one teacher away through October 2026",
+    appliedDate: "2026-09-10",
+  },
+  {
+    id: "lr_000b",
+    staffId: "stf_017",
+    staffName: "Ngozi Eze",
+    type: "sick" as const,
+    startDate: "2026-10-03",
+    endDate: "2026-10-06",
+    days: 2,
+    status: "approved" as const,
+    reason: "Malaria; mirrors absence abs_002",
+    appliedDate: "2026-10-03",
+  },
   {
     id: "lr_001",
     staffId: "stf_001",
@@ -3619,40 +3899,9 @@ export function classRoster(classId: string): Student[] {
 }
 
 /**
- * Real teaching assignments for a staff member, derived from the class links
- * (homeroom via class.classTeacherId, subjects via classSubject.teacherIds).
- * Replaces the old denormalised classesAssigned count. Scoped per class to its
- * own session/term.
+ * A staff member's homeroom plus teaching rows active on the date (today by
+ * default). See lib/staff/assignments.ts.
  */
-export function staffAssignments(staffId: string): StaffAssignment[] {
-  const out: StaffAssignment[] = [];
-  for (const c of classes) {
-    if (c.classTeacherId === staffId) {
-      out.push({
-        staffId,
-        classId: c.id,
-        className: c.name,
-        subjectId: null,
-        role: "homeroom",
-        academicSession: c.academicSession,
-        term: c.currentTerm,
-      });
-    }
-  }
-  for (const cs of classSubjects) {
-    if (!cs.teacherIds.includes(staffId)) continue;
-    const c = classes.find((x) => x.id === cs.classId);
-    if (!c) continue;
-    const role: AssignmentRole = cs.teacherIds.length > 1 ? "co_teacher" : "subject";
-    out.push({
-      staffId,
-      classId: c.id,
-      className: c.name,
-      subjectId: cs.subjectId,
-      role,
-      academicSession: c.academicSession,
-      term: c.currentTerm,
-    });
-  }
-  return out;
+export function staffAssignments(staffId: string, dateISO: string = DEMO_TODAY): StaffAssignment[] {
+  return assignmentsForStaff(staffId, dateISO, teachingAssignments, classes, { classSubjects });
 }

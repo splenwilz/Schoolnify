@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, CheckCircle2, Users, AlertTriangle, Loader2, RefreshCcw, WifiOff } from "lucide-react";
 import { useAllStudents, usePromoteStudents } from "@/hooks/use-students";
 import { useSchoolSetup } from "@/hooks/use-school-setup";
-import { Avatar } from "../_components/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 type Decision = "promote" | "retain" | "graduate";

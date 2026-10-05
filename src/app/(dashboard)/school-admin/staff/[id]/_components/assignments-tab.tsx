@@ -2,18 +2,31 @@
 
 import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { GraduationCap, Home, Users } from "lucide-react";
-import type { Staff, AssignmentRole } from "@/types/staff";
-import { staffAssignments } from "@/lib/demo-data";
+import { GraduationCap, Home, LifeBuoy, Users } from "lucide-react";
+import type { Staff, AssignmentRole, StaffAssignment } from "@/types/staff";
+import { formatDate } from "@/lib/staff/dates";
 
 const ROLE_LABEL: Record<AssignmentRole, string> = {
-  homeroom: "Homeroom",
+  homeroom: "Class teacher",
   subject: "Subject",
   co_teacher: "Co-teacher",
+  cover: "Cover",
 };
 
-export function AssignmentsTab({ staff: member }: { staff: Staff }) {
-  const assignments = useMemo(() => staffAssignments(member.id), [member.id]);
+const ROLE_ICON: Record<AssignmentRole, typeof Home> = {
+  homeroom: Home,
+  subject: GraduationCap,
+  co_teacher: Users,
+  cover: LifeBuoy,
+};
+
+function windowText(a: StaffAssignment): string | null {
+  if (a.role === "homeroom") return null;
+  if (a.endsOn) return `${formatDate(a.startsOn, "short")} to ${formatDate(a.endsOn, "short")}`;
+  return `from ${formatDate(a.startsOn, "short")}`;
+}
+
+export function AssignmentsTab({ staff: member, assignments }: { staff: Staff; assignments: StaffAssignment[] }) {
 
   // Group by class so a teacher's homeroom + subjects in the same class sit together.
   const byClass = useMemo(() => {
@@ -69,17 +82,23 @@ export function AssignmentsTab({ staff: member }: { staff: Staff }) {
               {group.className}
             </p>
             <div className="flex flex-col gap-1.5">
-              {group.rows.map((a, i) => {
-                const Icon = a.role === "homeroom" ? Home : a.role === "co_teacher" ? Users : GraduationCap;
+              {group.rows.map((a) => {
+                const Icon = ROLE_ICON[a.role];
+                const window = windowText(a);
                 return (
-                  <div key={i} className="flex items-center gap-2 text-[12px] text-[var(--muted)]">
-                    <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                  <div key={a.id} className="flex flex-wrap items-center gap-2 text-[12px] text-[var(--muted)]">
+                    <Icon className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
                     <span className="text-[var(--foreground)]">
-                      {a.subjectId ?? "Homeroom"}
+                      {a.subjectId ?? "Pastoral owner of the class"}
                     </span>
                     <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-[var(--background-secondary)] text-[var(--muted)]">
                       {ROLE_LABEL[a.role]}
                     </span>
+                    {a.source === "self_contained" && (
+                      <span className="text-[11px]">Class teacher teaches all subjects</span>
+                    )}
+                    {a.periodsPerWeek !== null && <span className="text-[11px]">{a.periodsPerWeek} periods/week</span>}
+                    {window && <span className="text-[11px]">{window}</span>}
                     <span className="ml-auto tabular-nums">
                       {a.academicSession} · {a.term}
                     </span>

@@ -26,7 +26,7 @@ import { EnrollmentChart } from "./_components/enrollment-chart";
 import { MetricsGrid } from "./_components/metrics-grid";
 import { StudentTable } from "./_components/student-table";
 import { BulkActionsBar } from "./_components/bulk-actions-bar";
-import { Avatar } from "./_components/avatar";
+import { Avatar } from "@/components/ui/avatar";
 
 const ITEMS_PER_PAGE = 25;
 

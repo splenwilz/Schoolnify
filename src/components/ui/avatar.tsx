@@ -4,7 +4,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 // Calm, professional monogram tints (no candy gradients). Each is a translucent
-// wash over a single hue with solid text — flat and muted, the same theme-safe
+// wash over a single hue with solid text, flat and muted, the same theme-safe
 // pattern the dashboard's status pills use. A deterministic hash keeps people
 // visually distinct without looking playful.
 const tints = [

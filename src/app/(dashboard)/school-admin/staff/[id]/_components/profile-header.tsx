@@ -3,48 +3,42 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Edit3, Mail, ChevronRight, Phone, Calendar, Briefcase, BookOpen } from "lucide-react";
-import { Avatar } from "../../../students/_components/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import type { Staff } from "@/types/staff";
-import { EMPLOYMENT_TYPE_LABEL } from "@/types/staff";
-import { staffAssignments } from "@/lib/demo-data";
+import type { Staff, EmploymentStatus } from "@/types/staff";
+import { CONTRACT_TYPE_LABEL, EMPLOYER_LABEL, EMPLOYMENT_STATUS_LABEL, staffFullName } from "@/types/staff";
+import { formatDate } from "@/lib/staff/dates";
 
 interface ProfileHeaderProps {
   staff: Staff;
+  classCount: number;
+  awayToday: boolean;
 }
 
-const deptColors: Record<string, string> = {
-  Mathematics: "#0891B2",
-  English: "#0891B2",
-  Science: "#0891B2",
-  "Student Services": "#0891B2",
-  Administration: "#0891B2",
-  History: "#0891B2",
-  "Physical Education": "#0891B2",
-  Art: "#0891B2",
-  Technology: "#0891B2",
-  Library: "#0891B2",
-  Music: "#0891B2",
-  "Health Services": "#0891B2",
+const STATUS_STYLE: Record<EmploymentStatus, { dot: string; pill: string }> = {
+  active: { dot: "bg-[var(--success)]", pill: "bg-[var(--success)]/10 text-[var(--success)]" },
+  onboarding: { dot: "bg-[var(--brand)]", pill: "bg-[var(--brand)]/10 text-[var(--brand)]" },
+  suspended: { dot: "bg-[var(--warning)]", pill: "bg-[var(--warning)]/10 text-[var(--warning)]" },
+  inactive: { dot: "bg-[var(--muted)]", pill: "bg-[var(--background-secondary)] text-[var(--muted)]" },
 };
 
-export function ProfileHeader({ staff: member }: ProfileHeaderProps) {
-  const joinYear = new Date(member.joinDate).getFullYear();
-  const joinMonth = new Date(member.joinDate).toLocaleDateString("en-US", { month: "short" });
-  const deptColor = deptColors[member.department] || "#6B7280";
-  const classCount = new Set(staffAssignments(member.id).map((a) => a.classId)).size;
+// One accent for every department; the department name itself carries the meaning.
+const DEPT_COLOR = "#0891B2";
+
+export function ProfileHeader({ staff: member, classCount, awayToday }: ProfileHeaderProps) {
+  const deptColor = DEPT_COLOR;
+  const status = STATUS_STYLE[member.employmentStatus];
+  const name = staffFullName(member);
 
   return (
     <div>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-[var(--muted)] mb-6">
         <Link href="/school-admin/staff" className="hover:text-[var(--foreground)] transition-colors">
-          Team
+          Staff
         </Link>
         <ChevronRight className="w-4 h-4" />
-        <span className="text-[var(--foreground)]">
-          {member.firstName} {member.lastName}
-        </span>
+        <span className="text-[var(--foreground)]">{name}</span>
       </div>
 
       {/* Profile Banner */}
@@ -88,27 +82,27 @@ export function ProfileHeader({ staff: member }: ProfileHeaderProps) {
               <span
                 className={cn(
                   "absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-[3px] border-[var(--card)]",
-                  member.status === "active" ? "bg-[#10B981]" : "bg-[#F59E0B]"
+                  awayToday ? "bg-[var(--warning)]" : status.dot
                 )}
+                aria-hidden="true"
               />
-              {member.status === "active" && (
-                <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#10B981] animate-ping opacity-40" />
-              )}
             </motion.div>
 
             {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-xl font-bold text-[var(--foreground)]">
-                  {member.firstName} {member.lastName}
-                </h1>
-                {member.status === "active" ? (
-                  <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-[#10B981]/10 text-[#10B981]">
-                    Active
+                <h1 className="text-xl font-bold text-[var(--foreground)]">{name}</h1>
+                <span className={cn("inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full", status.pill)}>
+                  {EMPLOYMENT_STATUS_LABEL[member.employmentStatus]}
+                </span>
+                {member.contractLapsed && (
+                  <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-[var(--error)]/10 text-[var(--error)]">
+                    Contract ended
                   </span>
-                ) : (
-                  <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-[#F59E0B]/10 text-[#F59E0B]">
-                    On Leave
+                )}
+                {awayToday && (
+                  <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-[var(--warning)]/10 text-[var(--warning)]">
+                    Away today
                   </span>
                 )}
               </div>
@@ -131,15 +125,29 @@ export function ProfileHeader({ staff: member }: ProfileHeaderProps) {
               </div>
 
               {/* Contact row */}
-              <div className="flex items-center gap-4 mt-3 text-[12px] text-[var(--muted)]">
-                <a href={`mailto:${member.email}`} className="flex items-center gap-1.5 hover:text-[var(--foreground)] transition-colors">
-                  <Mail className="w-3.5 h-3.5" />
-                  {member.email}
-                </a>
-                <a href={`tel:${member.phone}`} className="flex items-center gap-1.5 hover:text-[var(--foreground)] transition-colors">
-                  <Phone className="w-3.5 h-3.5" />
-                  {member.phone}
-                </a>
+              <div className="flex items-center gap-4 mt-3 text-[12px] text-[var(--muted)] flex-wrap">
+                {member.email ? (
+                  <a href={`mailto:${member.email}`} className="flex items-center gap-1.5 hover:text-[var(--foreground)] transition-colors">
+                    <Mail className="w-3.5 h-3.5" aria-hidden="true" />
+                    {member.email}
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5" aria-hidden="true" />
+                    No work email
+                  </span>
+                )}
+                {member.phone ? (
+                  <a href={`tel:${member.phone}`} className="flex items-center gap-1.5 hover:text-[var(--foreground)] transition-colors">
+                    <Phone className="w-3.5 h-3.5" aria-hidden="true" />
+                    {member.phone}
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5" aria-hidden="true" />
+                    No phone
+                  </span>
+                )}
               </div>
 
               {/* Stat pills */}
@@ -151,27 +159,41 @@ export function ProfileHeader({ staff: member }: ProfileHeaderProps) {
                   </span>
                 )}
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-[var(--foreground)] bg-[var(--background-secondary)] rounded-lg">
-                  <Briefcase className="w-3.5 h-3.5 text-[#0891B2]" />
-                  {EMPLOYMENT_TYPE_LABEL[member.employmentType]}
+                  <Briefcase className="w-3.5 h-3.5 text-[#0891B2]" aria-hidden="true" />
+                  {CONTRACT_TYPE_LABEL[member.contractType]}
                   {member.ftePercent < 100 ? ` · ${member.ftePercent}%` : ""}
+                  {member.isTermTimeOnly ? " · term time" : ""}
                 </span>
+                {member.employer !== "school" && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-[var(--foreground)] bg-[var(--background-secondary)] rounded-lg">
+                    Paid by {EMPLOYER_LABEL[member.employer]}
+                  </span>
+                )}
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-[var(--foreground)] bg-[var(--background-secondary)] rounded-lg">
                   <Calendar className="w-3.5 h-3.5 text-[#0891B2]" />
-                  Joined {joinMonth} {joinYear}
+                  Joined {formatDate(member.hireDate, "monthYear")}
                 </span>
               </div>
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              <button className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-[var(--foreground)] bg-[var(--card)] border border-[var(--border)] rounded-xl hover:bg-[var(--background-secondary)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors">
-                <Edit3 className="w-4 h-4" />
-                Edit Profile
-              </button>
-              <button className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-white bg-[#0891B2] rounded-xl hover:bg-[#0E7490] shadow-sm shadow-[#0891B2]/20 transition-all">
-                <Mail className="w-4 h-4" />
-                Message
-              </button>
+              <Link
+                href={`/school-admin/staff/${member.id}/edit`}
+                className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-[var(--foreground)] bg-[var(--card)] border border-[var(--border)] rounded-xl hover:bg-[var(--background-secondary)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors"
+              >
+                <Edit3 className="w-4 h-4" aria-hidden="true" />
+                Edit profile
+              </Link>
+              {(member.email || member.phone) && (
+                <a
+                  href={member.email ? `mailto:${member.email}` : `sms:${member.phone}`}
+                  className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-white bg-[#0891B2] rounded-xl hover:bg-[#0E7490] shadow-sm shadow-[#0891B2]/20 transition-all"
+                >
+                  <Mail className="w-4 h-4" aria-hidden="true" />
+                  Message
+                </a>
+              )}
             </div>
           </div>
         </div>

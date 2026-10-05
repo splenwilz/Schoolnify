@@ -16,7 +16,7 @@ export function EmptyState({ onClearFilters }: EmptyStateProps) {
         onClick={onClearFilters}
         className="mt-4 text-sm text-[var(--brand)] hover:underline"
       >
-        Clear all filters
+        Clear filters
       </button>
     </div>
   );
