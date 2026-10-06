@@ -16,6 +16,57 @@ export type ClassStatus = "active" | "draft" | "archived";
 
 export type SssStream = "Science" | "Arts" | "Commercial" | "Technical";
 
+/**
+ * How a class is staffed (docs/11A-TEACHING-MODEL-AMENDMENT.md):
+ *  - self_contained: the class teacher teaches every subject (primary).
+ *  - form_plus_specialists: a form teacher owns the class; specialists teach (junior secondary).
+ *  - specialists_only: nobody owns the class; subject teachers rotate (senior secondary).
+ */
+export type TeachingModel = "self_contained" | "form_plus_specialists" | "specialists_only";
+
+export const TEACHING_MODEL_LABEL: Record<TeachingModel, string> = {
+  self_contained: "Class teacher teaches all subjects",
+  form_plus_specialists: "Form teacher plus subject specialists",
+  specialists_only: "Subject specialists only",
+};
+
+/**
+ * A teaching set groups the same subject across arms (e.g. Further Maths for
+ * SS1 Science A + SS1 Arts A taught together). Assignments and timetable
+ * periods attach to the set; each member class keeps its own ClassSubject row
+ * and elective sub-roster.
+ */
+export interface TeachingSet {
+  id: string;
+  subjectId: string;
+  name: string;              // "SS1 Further Maths set"
+  academicSession: string;
+}
+
+export type TeachingRole = "subject" | "co_teacher" | "cover";
+export type AssignmentSource = "manual" | "self_contained";
+
+/**
+ * Who teaches what, when. The single source of truth for subject teaching;
+ * the pastoral class teacher is `Class.classTeacherId`, not a row here.
+ */
+export interface TeachingAssignment {
+  id: string;
+  classId: string;
+  subjectId: string;
+  staffId: string;
+  role: TeachingRole;
+  /** When set, this assignment covers every ClassSubject in the set, not only classId/subjectId. */
+  teachingSetId: string | null;
+  termId: string | null;        // null = whole session
+  startsOn: string;             // YYYY-MM-DD
+  endsOn: string | null;        // null = open ended
+  periodsPerWeek: number | null;
+  /** self_contained rows are system-managed for self-contained classes. */
+  source: AssignmentSource;
+  notes: string | null;
+}
+
 export interface Class {
   id: string;
   name: string;                  // "JSS 1A", "Primary 4 Gold", "SS2 Sci A"
@@ -24,7 +75,8 @@ export interface Class {
   stream: SssStream | null;      // SSS-only; null otherwise
   academicSession: string;       // "2025/2026"
   currentTerm: string;           // "First", "Second", "Third"
-  classTeacherId: string;        // FK -> staff.id (homeroom)
+  classTeacherId: string | null; // FK -> staff.id; pastoral owner (form/homeroom teacher)
+  teachingModel: TeachingModel;
   room: string;
   capacity: number;
   status: ClassStatus;
@@ -52,9 +104,13 @@ export interface Class {
 export interface ClassSubject {
   classId: string;
   subjectId: string;             // matches setup wizard subject names for now
-  // Co-teaching / split sections: a subject can be taught by more than one
-  // staff member. Empty array = falls back to the class (homeroom) teacher.
+  /**
+   * @deprecated Derived from active TeachingAssignment rows; kept so the
+   * classes UI keeps compiling until it reads assignments directly.
+   */
   teacherIds: string[];          // FK[] -> staff.id
+  /** Member of a cross-arm teaching set; null = taught to this class alone. */
+  teachingSetId: string | null;
   // SSS electives: when false, only students in ClassSubjectEnrollment take this
   // subject (a sub-roster). When true, every enrolled student takes it (core).
   isCore: boolean;
@@ -121,7 +177,7 @@ export function classShortCode(
 }
 
 /**
- * The band label of a grade level — the non-numeric leading text.
+ * The band label of a grade level, the non-numeric leading text.
  * Country-agnostic: "Primary 4" -> "Primary", "Grade 5" -> "Grade",
  * "Year 7" -> "Year", "JSS 1" -> "JSS", "Kindergarten" -> "Kindergarten".
  * Used to group classes into filter bands derived from whatever naming the

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Edit3, Mail, ChevronRight, FileText, UserCog, ArrowRightLeft } from "lucide-react";
 import { useSchoolConfig } from "@/lib/school-config-context";
-import { Avatar } from "../../_components/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { StatusChangeDialog } from "../../_components/status-change-dialog";
 import { ClassChangeDialog } from "../../_components/class-change-dialog";
 import type { Student } from "@/types/student";

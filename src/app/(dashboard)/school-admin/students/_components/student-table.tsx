@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Avatar } from "./avatar";
+import { Avatar } from "@/components/ui/avatar";
 import type { Student } from "@/types/student";
 import { primaryGuardian, STATUS_LABEL } from "@/types/student";
 

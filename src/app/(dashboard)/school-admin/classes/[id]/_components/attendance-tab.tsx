@@ -6,7 +6,7 @@ import { CalendarCheck, Check } from "lucide-react";
 import type { Class } from "@/types/class";
 import { classRoster } from "@/lib/demo-data";
 import { todayLocalISO } from "../../../students/_utils/dates";
-import { Avatar } from "../../../students/_components/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 type AttStatus = "present" | "absent" | "late" | "excused";

@@ -21,20 +21,22 @@ export function BulkActionsBar({ count, onClear }: BulkActionsBarProps) {
         >
           <span className="text-sm font-medium">{count} selected</span>
           <div className="w-px h-5 bg-[var(--background)]/20" />
-          <button className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
+          <button type="button" disabled title="Not available yet" className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
             <Download className="w-4 h-4" /> Export
           </button>
-          <button className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
+          <button type="button" disabled title="Not available yet" className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
             <Mail className="w-4 h-4" /> Message
           </button>
-          <button className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity">
+          <button type="button" disabled title="Not available yet" className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
             <UserCog className="w-4 h-4" /> Status
           </button>
           <button
+            type="button"
             onClick={onClear}
+            aria-label="Clear selection"
             className="ml-2 p-1 rounded-full hover:bg-[var(--background)]/10 transition-colors"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </motion.div>
       )}

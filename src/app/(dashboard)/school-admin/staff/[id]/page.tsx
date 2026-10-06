@@ -1,48 +1,36 @@
-"use client";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { staff, staffAbsences, staffAssignments, staffDetail } from "@/lib/demo-data";
+import { staffFullName } from "@/types/staff";
+import { toISODate } from "@/lib/staff/dates";
+import { awayStaffIds } from "@/lib/staff/leave";
+import { StaffDetailView } from "./_components/staff-detail-view";
 
-import { use } from "react";
-import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowLeft } from "lucide-react";
-import { staff } from "@/lib/demo-data";
-import { ProfileHeader } from "./_components/profile-header";
-import { StaffDetailTabs } from "./_components/staff-detail-tabs";
+type Params = Promise<{ id: string }>;
 
-export default function StaffDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
-  const staffMember = staff.find((s) => s.id === resolvedParams.id);
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { id } = await params;
+  const member = staff.find((s) => s.id === id);
+  return { title: member ? staffFullName(member) : "Staff member not found" };
+}
 
-  if (!staffMember) {
-    return (
-      <div className="max-w-[1200px] mx-auto">
-        <div className="py-16 flex flex-col items-center justify-center">
-          <div className="w-12 h-12 rounded-full bg-[var(--background-secondary)] flex items-center justify-center mb-4">
-            <ArrowLeft className="w-5 h-5 text-[var(--muted)]" />
-          </div>
-          <h1 className="text-lg font-semibold text-[var(--foreground)]">Member Not Found</h1>
-          <p className="text-sm text-[var(--muted)] mt-1">
-            The team member you&apos;re looking for doesn&apos;t exist.
-          </p>
-          <Link
-            href="/school-admin/staff"
-            className="mt-4 text-sm text-[#0891B2] hover:underline"
-          >
-            Back to Team
-          </Link>
-        </div>
-      </div>
-    );
-  }
+/** Server Component: resolves the full record (404 via notFound) and passes plain props down. */
+export default async function StaffDetailPage({ params }: { params: Params }) {
+  const { id } = await params;
+  const member = staffDetail(id);
+  if (!member) notFound();
+
+  const today = toISODate(new Date());
+  const manager = member.reportsToId ? staff.find((s) => s.id === member.reportsToId) : undefined;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="max-w-[1200px] mx-auto"
-    >
-      <ProfileHeader staff={staffMember} />
-      <StaffDetailTabs staff={staffMember} />
-    </motion.div>
+    <StaffDetailView
+      member={member}
+      today={today}
+      assignments={staffAssignments(member.id, today)}
+      staffDirectory={staff.map((s) => ({ id: s.id, name: staffFullName(s) }))}
+      managerName={manager ? staffFullName(manager) : null}
+      awayToday={awayStaffIds(staffAbsences, today).has(member.id)}
+    />
   );
 }

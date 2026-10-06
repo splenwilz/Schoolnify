@@ -1,54 +1,39 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { User, Mail, Phone, Building2, Calendar, BookOpen, DollarSign } from "lucide-react";
-
-interface StaffMember {
-  email: string;
-  phone: string;
-  department: string;
-  joinDate: string;
-  classesAssigned: number;
-  salary: number;
-}
+import { User, Mail, Phone, Building2, Calendar, Hash } from "lucide-react";
+import type { Staff } from "@/types/staff";
+import { formatDate } from "@/lib/staff/dates";
 
 interface InfoCardProps {
-  staff: StaffMember;
+  staff: Staff;
 }
 
 const iconMap: Record<string, typeof Mail> = {
   Email: Mail,
   Phone: Phone,
   Department: Building2,
-  "Join Date": Calendar,
-  Classes: BookOpen,
-  Salary: DollarSign,
+  "Hire date": Calendar,
+  "Date of birth": Calendar,
+  "Employee No.": Hash,
 };
 
 const colorMap: Record<string, string> = {
   Email: "#0891B2",
   Phone: "#0891B2",
   Department: "#0891B2",
-  "Join Date": "#0891B2",
-  Classes: "#0891B2",
-  Salary: "#0891B2",
+  "Hire date": "#0891B2",
+  "Employee No.": "#0891B2",
 };
 
 export function InfoCard({ staff: member }: InfoCardProps) {
   const fields = [
-    { label: "Email", value: member.email },
-    { label: "Phone", value: member.phone },
+    { label: "Email", value: member.email ?? "Not on file" },
+    { label: "Phone", value: member.phone ?? "Not on file" },
+    { label: "Date of birth", value: member.dateOfBirth ? formatDate(member.dateOfBirth, "long") : "Not on file" },
     { label: "Department", value: member.department },
-    {
-      label: "Join Date",
-      value: new Date(member.joinDate).toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      }),
-    },
-    { label: "Classes", value: `${member.classesAssigned} assigned` },
-    { label: "Salary", value: `$${member.salary.toLocaleString()}/yr` },
+    { label: "Hire date", value: formatDate(member.hireDate, "long") },
+    { label: "Employee No.", value: member.employeeNumber },
   ];
 
   return (

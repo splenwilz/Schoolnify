@@ -29,7 +29,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export function SettingsTab({ classData }: { classData: Class }) {
-  const teachers = staff.filter((s) => s.role === "Teacher");
+  const teachers = staff.filter((s) => s.isTeacher);
   const [form, setForm] = useState({
     name: classData.name,
     arm: classData.arm,
@@ -37,7 +37,7 @@ export function SettingsTab({ classData }: { classData: Class }) {
     capacity: String(classData.capacity),
     stream: (classData.stream ?? "") as SssStream | "",
     status: classData.status,
-    classTeacherId: classData.classTeacherId,
+    classTeacherId: classData.classTeacherId ?? "",
   });
   const [savedTick, setSavedTick] = useState(false);
 
@@ -98,6 +98,7 @@ export function SettingsTab({ classData }: { classData: Class }) {
           </Field>
           <Field label="Class teacher">
             <select value={form.classTeacherId} onChange={(e) => set("classTeacherId", e.target.value)} className={inputCls}>
+              <option value="">No class teacher (specialists only)</option>
               {teachers.map((t) => (
                 <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>
               ))}
