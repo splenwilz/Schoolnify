@@ -66,6 +66,16 @@ describe("escapeCsvCell / buildCsv", () => {
     expect(escapeCsvCell("+2348031234567")).toBe("'+2348031234567");
     expect(escapeCsvCell(null)).toBe("");
   });
+  it("drops the formula guard again on import so an exported template round-trips", () => {
+    const parsed = parseCsvText("phone,note\n'+2348031234567,'=not a formula\n'quoted,plain");
+    expect(parsed.rows[0]).toEqual({ phone: "+2348031234567", note: "=not a formula" });
+    expect(parsed.rows[1].phone).toBe("'quoted"); // a real leading apostrophe stays
+  });
+  it("lists rows with too many cells so the wizard can reject them", () => {
+    const parsed = parseCsvText("a,b\n1,2\n1,2,3\n4,5");
+    expect(parsed.badRows).toEqual([1]);
+    expect(parsed.rows).toHaveLength(3);
+  });
   it("builds a CSV with a BOM for Excel", () => {
     const csv = buildCsv(["a", "b"], [{ a: "1", b: "x,y" }]);
     expect(csv).toBe('﻿a,b\n1,"x,y"');

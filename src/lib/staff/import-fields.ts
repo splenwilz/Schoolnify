@@ -71,6 +71,9 @@ export function staffImportRowRules(todayISO: string): (normalized: Record<strin
       },
       todayISO
     ).map((i) => ({ field: RULE_FIELD[i.path], message: i.message }));
+    if (row.reports_to_email && row.email && row.reports_to_email === row.email) {
+      errors.push({ field: "reports_to_email", message: "A person cannot report to themselves" });
+    }
     if (row.emergency_contact_name) {
       if (!row.emergency_contact_phone) errors.push({ field: "emergency_contact_phone", message: "Emergency contact phone is required when a contact is named" });
       if (!row.emergency_contact_relationship) errors.push({ field: "emergency_contact_relationship", message: "Emergency contact relationship is required when a contact is named" });

@@ -10,6 +10,8 @@ export interface ParsedCsv {
   headers: string[];
   rows: Record<string, string>[];
   errors: string[];
+  /** 0-based indexes into `rows` that had more cells than headers; values may have shifted columns, so they must not import. */
+  badRows: number[];
 }
 
 /** Hard ceilings for a browser-side import; parsing is on the main thread and larger inputs would freeze the tab. */
@@ -27,10 +29,10 @@ export function parseCsvText(text: string, options: ParseOptions = {}): ParsedCs
   const maxRows = options.maxRows ?? MAX_IMPORT_ROWS;
   const maxBytes = options.maxBytes ?? MAX_IMPORT_BYTES;
   if (text.length > maxBytes) {
-    return { headers: [], rows: [], errors: [`The input is larger than ${Math.round(maxBytes / 1024 / 1024)} MB; split it and import in parts`] };
+    return { headers: [], rows: [], errors: [`The input is larger than ${Math.round(maxBytes / 1024 / 1024)} MB; split it and import in parts`], badRows: [] };
   }
   const source = text.startsWith(BOM) ? text.slice(1) : text;
-  if (source.trim() === "") return { headers: [], rows: [], errors: ["No rows found in the file"] };
+  if (source.trim() === "") return { headers: [], rows: [], errors: ["No rows found in the file"], badRows: [] };
 
   const result = Papa.parse<Record<string, string>>(source, {
     header: true,
@@ -43,7 +45,7 @@ export function parseCsvText(text: string, options: ParseOptions = {}): ParsedCs
     const cleaned: Record<string, string> = {};
     for (const h of headers) {
       const v = row[h];
-      cleaned[h] = typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim();
+      cleaned[h] = unguard(typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim());
     }
     return cleaned;
   });
@@ -64,21 +66,26 @@ export function parseCsvText(text: string, options: ParseOptions = {}): ParsedCs
     errors.push(`Row ${e.row == null ? "?" : e.row + 1}: ${e.message}`);
   }
   if (tooManyRows.length === 1) {
-    errors.push(`Row ${tooManyRows[0]} has more values than columns; the extra values were ignored`);
+    errors.push(`Row ${tooManyRows[0]} has more values than columns, so its values may be in the wrong columns; it will not import until fixed`);
   } else if (tooManyRows.length > 1) {
     const shown = tooManyRows.slice(0, 5).join(", ");
     const more = tooManyRows.length - Math.min(5, tooManyRows.length);
-    errors.push(`${tooManyRows.length} rows have more values than columns; the extra values were ignored (rows ${shown}${more > 0 ? ` and ${more} more` : ""})`);
+    errors.push(`${tooManyRows.length} rows have more values than columns, so their values may be in the wrong columns; they will not import until fixed (rows ${shown}${more > 0 ? ` and ${more} more` : ""})`);
   }
   if (truncated) errors.push(`Only the first ${maxRows} rows were read; split the file to import the rest`);
   if (rows.length === 0) errors.unshift("No rows found in the file");
-  return { headers, rows, errors };
+  return { headers, rows, errors, badRows: tooManyRows.map((n) => n - 1) };
+}
+
+/** Undo the formula guard escapeCsvCell adds, so our own template and error files round-trip. A plain leading apostrophe is kept. */
+function unguard(v: string): string {
+  return /^'[=+\-@\t\r]/.test(v) ? v.slice(1) : v;
 }
 
 export async function parseCsvFile(file: File, options: ParseOptions = {}): Promise<ParsedCsv> {
   const maxBytes = options.maxBytes ?? MAX_IMPORT_BYTES;
   if (file.size > maxBytes) {
-    return { headers: [], rows: [], errors: [`The file is larger than ${Math.round(maxBytes / 1024 / 1024)} MB; split it and import in parts`] };
+    return { headers: [], rows: [], errors: [`The file is larger than ${Math.round(maxBytes / 1024 / 1024)} MB; split it and import in parts`], badRows: [] };
   }
   return parseCsvText(await file.text(), options);
 }

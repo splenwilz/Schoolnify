@@ -85,30 +85,17 @@ export function validateRows(
   const seen = new Map<string, Map<string, number>>();
   for (const f of fields) if (f.unique) seen.set(f.key, new Map());
 
-  // Values this file itself provides for referenced fields (e.g. a manager
-  // created a few rows up), so a reference is not flagged as unknown.
   const fieldByKey = new Map(fields.map((f) => [f.key, f]));
-  const inFile = new Map<string, Set<string>>();
-  for (const f of fields) {
-    if (!f.mustExistIn || inFile.has(f.mustExistIn)) continue;
-    const target = fieldByKey.get(f.mustExistIn);
-    const column = columnFor.get(f.mustExistIn);
-    const values = new Set<string>();
-    if (target && column) {
-      for (const row of rows) {
-        const v = (row[column] ?? "").trim();
-        if (v) values.add(target.type === "email" ? v.toLowerCase() : v);
-      }
-    }
-    inFile.set(f.mustExistIn, values);
-  }
 
+  // Pass 1: cells, uniqueness, matches and row rules.
   const results: RowResult[] = rows.map((row, index) => {
     const errors: RowError[] = unmappedRequired.map((key) => ({ field: key, message: "Column not mapped" }));
-    const warnings: RowError[] = [];
+    const parseError = ctx.rowErrors?.get(index);
+    if (parseError) errors.push({ field: "_row", message: parseError });
     const normalized: Record<string, string> = {};
     let match: RowResult["match"] = "new";
     let matchedOn: string | undefined;
+    let matchedId: string | undefined;
 
     for (const f of fields) {
       const column = columnFor.get(f.key);
@@ -119,9 +106,6 @@ export function validateRows(
         if (!unmappedRequired.includes(f.key)) errors.push({ field: f.key, message: error });
         continue;
       }
-      if (f.mustExistIn && value !== "" && !ctx.existing?.[f.mustExistIn]?.has(value) && !inFile.get(f.mustExistIn)?.has(value)) {
-        warnings.push({ field: f.key, message: `No staff member with ${f.mustExistIn.replace(/_/g, " ")} "${value}"; left blank` });
-      }
       if (f.unique && value !== "") {
         const bucket = seen.get(f.key)!;
         const firstRow = bucket.get(value);
@@ -130,9 +114,14 @@ export function validateRows(
         } else {
           bucket.set(value, index);
         }
-        if (ctx.existing?.[f.key]?.has(value) && match === "new") {
+        const id = ctx.existingIds?.[f.key]?.get(value);
+        if (id !== undefined && matchedId !== undefined && id !== matchedId) {
+          errors.push({ field: f.key, message: `Matches a different person than the ${fieldByKey.get(matchedOn ?? "")?.label.toLowerCase() ?? matchedOn} does` });
+        }
+        if ((ctx.existing?.[f.key]?.has(value) || id !== undefined) && match === "new") {
           match = "existing";
           matchedOn = f.key;
+          matchedId = id;
         }
       }
     }
@@ -145,8 +134,26 @@ export function validateRows(
     // Cross-field rules only once the cells themselves are sound, so a rule
     // never repeats a field-level error.
     if (errors.length === 0 && ctx.rowRules) errors.push(...ctx.rowRules(normalized));
-    return { index, valid: errors.length === 0, errors, warnings, normalized, match, matchedOn };
+    return { index, valid: errors.length === 0, errors, warnings: [], normalized, match, matchedOn };
   });
+
+  // Pass 2: references. A value another row in this file provides (a manager
+  // created a few rows up) satisfies a reference, but only when that row is
+  // itself valid; a reference to a row that will fail is a miss.
+  const inFile = new Map<string, Set<string>>();
+  for (const f of fields) {
+    if (!f.mustExistIn || inFile.has(f.mustExistIn)) continue;
+    inFile.set(f.mustExistIn, new Set(results.filter((r) => r.valid && r.normalized[f.mustExistIn!]).map((r) => r.normalized[f.mustExistIn!])));
+  }
+  for (const r of results) {
+    for (const f of fields) {
+      const value = r.normalized[f.key];
+      if (!f.mustExistIn || !value || r.errors.some((e) => e.field === f.key)) continue;
+      if (!ctx.existing?.[f.mustExistIn]?.has(value) && !inFile.get(f.mustExistIn)?.has(value)) {
+        r.warnings.push({ field: f.key, message: `No staff member with ${f.mustExistIn.replace(/_/g, " ")} "${value}"; left blank` });
+      }
+    }
+  }
 
   const valid = results.filter((r) => r.valid);
   const summary = {

@@ -5,8 +5,8 @@ import { diffDays, isValidISODate } from "./dates";
  * Compliance rules shared by professional registrations, vetting checks and
  * training records. Status is derived from the expiry date and "today"; it is
  * never stored. 60 day window, 30 day urgent tier, both tenant settings in
- * the spec. A vetting check whose outcome is still pending counts as unknown
- * even without an expiry.
+ * the spec. A vetting check whose outcome is not clear (pending, or a concern
+ * raised) needs review and counts as unknown even without an expiry.
  */
 export const CREDENTIAL_EXPIRY_WINDOW_DAYS = 60;
 export const CREDENTIAL_URGENT_DAYS = 30;
@@ -20,8 +20,13 @@ export interface ExpiringItem {
   staffId: string;
   label: string;
   expiryDate: string | null;
-  /** Checks only: a pending outcome needs attention regardless of expiry. */
-  pending: boolean;
+  /** Checks only: an outcome other than clear (pending, or a concern raised) needs attention regardless of expiry. */
+  needsReview: boolean;
+}
+
+/** A vetting check needs review unless its outcome is clear: still pending, or a concern was raised. */
+export function checkNeedsReview(check: Pick<VettingCheck, "outcome">): boolean {
+  return check.outcome !== "clear";
 }
 
 export function expiringItemsOf(input: {
@@ -30,9 +35,9 @@ export function expiringItemsOf(input: {
   training?: readonly TrainingRecord[];
 }): ExpiringItem[] {
   return [
-    ...(input.registrations ?? []).map((r) => ({ kind: "registration" as const, id: r.id, staffId: r.staffId, label: `${r.body.toUpperCase()} ${r.number}`, expiryDate: r.expiryDate, pending: false })),
-    ...(input.checks ?? []).map((c) => ({ kind: "check" as const, id: c.id, staffId: c.staffId, label: c.type, expiryDate: c.expiryDate, pending: c.outcome === "pending" })),
-    ...(input.training ?? []).map((t) => ({ kind: "training" as const, id: t.id, staffId: t.staffId, label: t.type, expiryDate: t.expiryDate, pending: false })),
+    ...(input.registrations ?? []).map((r) => ({ kind: "registration" as const, id: r.id, staffId: r.staffId, label: `${r.body.toUpperCase()} ${r.number}`, expiryDate: r.expiryDate, needsReview: false })),
+    ...(input.checks ?? []).map((c) => ({ kind: "check" as const, id: c.id, staffId: c.staffId, label: c.type, expiryDate: c.expiryDate, needsReview: checkNeedsReview(c) })),
+    ...(input.training ?? []).map((t) => ({ kind: "training" as const, id: t.id, staffId: t.staffId, label: t.type, expiryDate: t.expiryDate, needsReview: false })),
   ];
 }
 
@@ -51,7 +56,7 @@ export function credentialStatus(expiryDate: string | null, todayISO: string, wi
 }
 
 function statusOf(item: ExpiringItem, todayISO: string, windowDays: number): CredentialStatus {
-  if (item.pending) return "unknown";
+  if (item.needsReview) return "unknown";
   return credentialStatus(item.expiryDate, todayISO, windowDays);
 }
 

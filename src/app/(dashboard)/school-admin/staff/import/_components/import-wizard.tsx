@@ -19,6 +19,13 @@ import { StepDone, type CommitResult } from "./step-done";
 export interface ImportPayload {
   create: StaffCreateInput[];
   update: { id: string; input: StaffCreateInput }[];
+  /**
+   * Rows whose manager is created in the same batch, so the id does not exist
+   * yet. `index` points into `create` or `update` per `target`; the commit
+   * resolves the manager's id after the batch and sets reportsToId in a
+   * second pass. Only managers whose own row is valid are queued.
+   */
+  pendingManagerLinks: { target: "create" | "update"; index: number; reportsToEmail: string }[];
 }
 
 interface ImportWizardProps {
@@ -60,6 +67,7 @@ export function ImportWizard({ existingStaff, today, country, onCommit }: Import
       byEmail,
       byNumber,
       sets: { email: new Set(byEmail.keys()), employee_number: new Set(byNumber.keys()) },
+      ids: { email: new Map([...byEmail].map(([e, s]) => [e, s.id])), employee_number: new Map([...byNumber].map(([n, s]) => [n, s.id])) },
       staffIdByEmail: new Map([...byEmail].map(([e, s]) => [e, s.id])),
     };
   }, [existingStaff]);
@@ -74,7 +82,8 @@ export function ImportWizard({ existingStaff, today, country, onCommit }: Import
 
   const handleValidate = () => {
     if (!parsed) return;
-    setValidated(validateRows(parsed.rows, mapping, STAFF_IMPORT_FIELDS, { dateFormat, existing: existing.sets, country, rowRules: staffImportRowRules(today) }));
+    const rowErrors = new Map(parsed.badRows.map((i) => [i, "More values than columns, so the values may be in the wrong columns; fix the quoting in the file"]));
+    setValidated(validateRows(parsed.rows, mapping, STAFF_IMPORT_FIELDS, { dateFormat, existing: existing.sets, existingIds: existing.ids, rowErrors, country, rowRules: staffImportRowRules(today) }));
     setCommitError(null);
     setStep("review");
   };
@@ -83,19 +92,27 @@ export function ImportWizard({ existingStaff, today, country, onCommit }: Import
     if (!parsed || !result) return;
     const bad = result.rows.filter((r) => !r.valid);
     const headers = [...parsed.headers, "errors"];
-    const rows = bad.map((r) => ({ ...parsed.rows[r.index], errors: r.errors.map((e) => `${e.field}: ${e.message}`).join("; ") }));
+    const labelFor = new Map(STAFF_IMPORT_FIELDS.map((f) => [f.key, f.label]));
+    const rows = bad.map((r) => ({ ...parsed.rows[r.index], errors: r.errors.map((e) => `${e.field === "_row" ? "Row" : labelFor.get(e.field) ?? e.field}: ${e.message}`).join("; ") }));
     downloadTextFile("staff_import_errors.csv", buildCsv(headers, rows));
   };
 
   const handleCommit = async () => {
     if (!result) return;
-    const payload: ImportPayload = { create: [], update: [] };
+    const payload: ImportPayload = { create: [], update: [], pendingManagerLinks: [] };
+    const createdEmails = new Set(result.rows.filter((r) => r.valid && r.match === "new" && r.normalized.email).map((r) => r.normalized.email));
     for (const r of result.rows) {
       if (!r.valid) continue;
       const input = rowToStaffInput(r.normalized, { staffIdByEmail: existing.staffIdByEmail });
       const match = existing.byEmail.get(r.normalized.email) ?? (r.normalized.employee_number ? existing.byNumber.get(r.normalized.employee_number) : undefined);
-      if (r.match === "existing" && match) payload.update.push({ id: match.id, input });
+      const isUpdate = r.match === "existing" && match !== undefined;
+      if (isUpdate) payload.update.push({ id: match.id, input });
       else payload.create.push(input);
+      const managerEmail = r.normalized.reports_to_email;
+      if (managerEmail && !existing.staffIdByEmail.has(managerEmail) && createdEmails.has(managerEmail)) {
+        const list = isUpdate ? payload.update : payload.create;
+        payload.pendingManagerLinks.push({ target: isUpdate ? "update" : "create", index: list.length - 1, reportsToEmail: managerEmail });
+      }
     }
     setCommitting(true);
     setCommitError(null);

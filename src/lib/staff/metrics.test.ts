@@ -27,8 +27,11 @@ describe("isOnBooksOn", () => {
   it("keeps suspended staff on the books", () => {
     expect(isOnBooksOn(makeStaff({ employmentStatus: "suspended" }), TODAY)).toBe(true);
   });
-  it("takes a lapsed contract off the books even without an exit event", () => {
-    expect(isOnBooksOn(makeStaff({ contractLapsed: true }), TODAY)).toBe(false);
+  it("takes a lapsed contract off the books from the day after it ended, and keeps history before that", () => {
+    const lapsed = makeStaff({ contractLapsed: true, contractEndDate: "2026-09-30" });
+    expect(isOnBooksOn(lapsed, TODAY)).toBe(false);
+    expect(isOnBooksOn(lapsed, "2026-09-30")).toBe(true);
+    expect(isOnBooksOn(lapsed, "2026-09-01")).toBe(true);
   });
 });
 

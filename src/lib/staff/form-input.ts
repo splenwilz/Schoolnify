@@ -6,7 +6,9 @@ import { activeRolesOn, currentContractOn } from "./projections";
  * Form input pre-filled from an existing record, for the edit page. The
  * contract fields come from the contract current on the date (a rehired
  * person's latest contract, not their first hire); without any contract the
- * form falls back to full time so it can be saved.
+ * form falls back to full time so it can be saved. Every responsibility on
+ * that contract is loaded, ended and future ones included, so saving the
+ * form never drops role history.
  */
 export function staffDetailToFormInput(s: StaffDetail, todayISO: string): StaffFormInput {
   const contract = currentContractOn(s.contracts, todayISO) ?? s.contracts[0] ?? null;
@@ -36,7 +38,7 @@ export function staffDetailToFormInput(s: StaffDetail, todayISO: string): StaffF
     probationEndDate: contract?.probationEndDate ?? "",
     reportsToId: s.reportsToId ?? "",
     gradeLevel: primary?.payStructure?.gradeLevel ?? s.gradeLevel ?? "",
-    responsibilities: roles
+    responsibilities: (contract?.roles ?? [])
       .filter((r) => r.roleKind === "responsibility")
       .map((r) => ({ designation: r.designation, department: r.department ?? "", allowanceCode: r.allowanceCode ?? "", startDate: r.startDate, endDate: r.endDate ?? "" })),
     emergencyContacts: s.emergencyContacts.map((c) => ({ name: c.name, relationship: c.relationship, phone: c.phone, isPrimary: c.isPrimary })),

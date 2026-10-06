@@ -49,7 +49,7 @@ export function StepUpload({ onParsed, onDownloadTemplate }: StepUploadProps) {
         <div>
           <h2 id={headingId} className="text-[15px] font-semibold text-[var(--foreground)]">Upload a CSV</h2>
           <p className="text-[12.5px] text-[var(--muted)] mt-0.5">
-            One row per person. Required columns: first name, last name, work email, designation, category, department, hire date.
+            One row per person. Required columns: first name, last name, designation, category, department, hire date, plus a work email or a phone for each person.
           </p>
         </div>
         <button type="button" onClick={onDownloadTemplate} className={button}>

@@ -46,6 +46,7 @@ export function makeStaff(overrides: Partial<Staff> = {}): Staff {
     customFields: {},
     employmentStatus: "active",
     contractLapsed: false,
+    contractEndDate: null,
     hireDate: "2020-09-01",
     exitDate: null,
     exitReason: null,

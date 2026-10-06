@@ -27,8 +27,9 @@ export default function AddClassPage() {
     }
   }
 
+  // Only teaching-eligible staff still on the books can own a class.
   const teachers = staff
-    .filter((s) => s.isTeacher || s.department)
+    .filter((s) => s.isTeacher && s.employmentStatus !== "inactive" && !s.contractLapsed)
     .map((s) => ({ id: s.id, name: `${s.firstName} ${s.lastName}` }));
 
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);

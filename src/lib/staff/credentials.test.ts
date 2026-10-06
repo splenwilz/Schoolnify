@@ -9,6 +9,7 @@ import {
   credentialsNeedingAttention,
   daysUntilExpiry,
   expiringItemsOf,
+  checkNeedsReview,
 } from "./credentials";
 
 const TODAY = "2026-10-04";
@@ -33,6 +34,11 @@ describe("daysUntilExpiry / credentialStatus", () => {
 });
 
 describe("expiringItemsOf", () => {
+  it("a check needs review unless its outcome is clear", () => {
+    expect(checkNeedsReview(makeCheck({ outcome: "clear" }))).toBe(false);
+    expect(checkNeedsReview(makeCheck({ outcome: "pending" }))).toBe(true);
+    expect(checkNeedsReview(makeCheck({ outcome: "concern" }))).toBe(true);
+  });
   it("flattens registrations, checks and training into one list with a kind", () => {
     const items = expiringItemsOf({
       registrations: [makeRegistration({ id: "r1", expiryDate: "2026-10-10" })],
@@ -46,7 +52,7 @@ describe("expiringItemsOf", () => {
 describe("credentialHealth / complianceSummary / credentialsNeedingAttention", () => {
   const items = expiringItemsOf({
     registrations: [makeRegistration({ staffId: "a", expiryDate: "2026-10-10" })],
-    checks: [makeCheck({ staffId: "b", expiryDate: "2026-01-01" }), makeCheck({ staffId: "c", expiryDate: null, outcome: "pending" })],
+    checks: [makeCheck({ staffId: "b", expiryDate: "2026-01-01" }), makeCheck({ staffId: "c", expiryDate: null, outcome: "pending" }), makeCheck({ staffId: "d", expiryDate: null, outcome: "concern" })],
     training: [makeTraining({ staffId: "c", expiryDate: "bad" })],
   });
   it("reports the worst state", () => {
@@ -54,10 +60,11 @@ describe("credentialHealth / complianceSummary / credentialsNeedingAttention", (
     expect(credentialHealth(items.filter((i) => i.staffId === "a"), TODAY)).toBe("expiring");
     expect(credentialHealth(items, TODAY)).toBe("expired");
   });
-  it("counts per status and a pending check outcome counts as needing attention", () => {
-    expect(complianceSummary(items, TODAY)).toEqual({ total: 4, valid: 0, expiring: 1, expired: 1, unknown: 2, staffWithIssues: 3 });
+  it("counts per status; pending and concern check outcomes both need attention", () => {
+    expect(complianceSummary(items, TODAY)).toEqual({ total: 5, valid: 0, expiring: 1, expired: 1, unknown: 3, staffWithIssues: 4 });
+    expect(credentialHealth(items.filter((i) => i.staffId === "d"), TODAY)).toBe("unknown");
   });
   it("orders attention expired, unknown, expiring", () => {
-    expect(credentialsNeedingAttention(items, TODAY).map((a) => a.status)).toEqual(["expired", "unknown", "unknown", "expiring"]);
+    expect(credentialsNeedingAttention(items, TODAY).map((a) => a.status)).toEqual(["expired", "unknown", "unknown", "unknown", "expiring"]);
   });
 });

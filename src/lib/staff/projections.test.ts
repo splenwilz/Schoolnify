@@ -83,6 +83,7 @@ describe("projectEmployment", () => {
     expect(projectEmployment([contract], events, TODAY)).toEqual({
       employmentStatus: "active",
       contractLapsed: false,
+      contractEndDate: "2026-12-31",
       hireDate: "2026-01-10",
       exitDate: null,
       exitReason: null,
@@ -98,7 +99,7 @@ describe("projectEmployment", () => {
   });
   it("falls back sensibly when there is no active contract", () => {
     const p = projectEmployment([], [], TODAY);
-    expect(p).toMatchObject({ designation: "Unassigned", department: "Unassigned", ftePercent: 0, contractType: "temporary", employer: "school", employmentStatus: "onboarding", contractLapsed: false });
+    expect(p).toMatchObject({ designation: "Unassigned", department: "Unassigned", ftePercent: 0, contractType: "temporary", employer: "school", employmentStatus: "onboarding", contractLapsed: false, contractEndDate: null });
   });
   it("sums FTE across contracts active on the date (job share)", () => {
     const a = makeContract({ id: "a", startDate: "2020-01-01", fte: 0.5, roles: [makeRole({ contractId: "a", designation: "Teacher" })] });
@@ -114,5 +115,11 @@ describe("projectEmployment", () => {
     expect(projectEmployment([ended], [makeEvent({ type: "hire", effectiveDate: "2020-01-01" })], "2025-06-01").contractLapsed).toBe(false);
     const exited = [makeEvent({ type: "hire", effectiveDate: "2020-01-01" }), makeEvent({ type: "exit", effectiveDate: "2025-12-31", reason: "end_of_contract" })];
     expect(projectEmployment([ended], exited, TODAY).contractLapsed).toBe(false);
+  });
+  it("a contract that has not started yet does not hide a gap", () => {
+    const ended = makeContract({ id: "old", startDate: "2020-01-01", endDate: "2026-08-31", fte: 1, roles: [makeRole({ contractId: "old", designation: "Teacher" })] });
+    const future = makeContract({ id: "next", startDate: "2027-01-01", fte: 0.5, contractType: "fixed_term", roles: [makeRole({ contractId: "next", designation: "Bursar" })] });
+    const p = projectEmployment([ended, future], [makeEvent({ type: "hire", effectiveDate: "2020-01-01" })], TODAY);
+    expect(p).toMatchObject({ contractLapsed: true, contractEndDate: "2026-08-31", designation: "Teacher", ftePercent: 100 });
   });
 });

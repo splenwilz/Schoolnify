@@ -344,6 +344,8 @@ export interface Staff extends PersonFields {
   employmentStatus: EmploymentStatus;
   /** Last contract ended with no exit event recorded; shown as "Contract ended" and off the books. */
   contractLapsed: boolean;
+  /** End date of the current (or last started) contract; null when open ended. Lets metrics keep history before a lapse. */
+  contractEndDate: string | null;
   hireDate: string;
   exitDate: string | null;
   exitReason: ExitReason | null;

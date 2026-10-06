@@ -30,9 +30,9 @@ export function AssignmentsTab({ staff: member, assignments }: { staff: Staff; a
 
   // Group by class so a teacher's homeroom + subjects in the same class sit together.
   const byClass = useMemo(() => {
-    const map = new Map<string, { className: string; rows: typeof assignments }>();
+    const map = new Map<string, { classId: string; className: string; rows: typeof assignments }>();
     for (const a of assignments) {
-      const entry = map.get(a.classId) ?? { className: a.className, rows: [] };
+      const entry = map.get(a.classId) ?? { classId: a.classId, className: a.className, rows: [] };
       entry.rows.push(a);
       map.set(a.classId, entry);
     }
@@ -75,7 +75,7 @@ export function AssignmentsTab({ staff: member, assignments }: { staff: Staff; a
       <div className="border-t border-[var(--border)]">
         {byClass.map((group) => (
           <div
-            key={group.className}
+            key={group.classId}
             className="px-5 py-3 border-b border-[var(--border)]/50 last:border-b-0"
           >
             <p className="text-[13px] font-semibold text-[var(--foreground)] mb-1.5">

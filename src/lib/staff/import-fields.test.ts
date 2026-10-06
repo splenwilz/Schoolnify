@@ -45,6 +45,11 @@ describe("staffImportRowRules: the same rules as the form", () => {
   it("applies the age rule to date of birth", () => {
     expect(errorsOf({ ...good, dob: "2015-01-01" })).toEqual(["date_of_birth"]);
   });
+  it("rejects a person reporting to themselves", () => {
+    const m = { ...mapping, b: "reports_to_email" };
+    const r = validateRows([{ ...good, e: "ada@x.test", b: "ADA@x.test" }], m, STAFF_IMPORT_FIELDS, ctx).rows[0];
+    expect(r.errors).toEqual([{ field: "reports_to_email", message: expect.stringMatching(/themselves/i) }]);
+  });
   it("requires a phone and relationship once an emergency contact is named", () => {
     expect(errorsOf({ ...good, ecn: "Grace" }).sort()).toEqual(["emergency_contact_phone", "emergency_contact_relationship"]);
     expect(errorsOf({ ...good, ecn: "Grace", ecp: "0803 000 0001", ecr: "Sister" })).toEqual([]);

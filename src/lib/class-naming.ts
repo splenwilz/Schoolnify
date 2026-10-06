@@ -150,6 +150,9 @@ export function formatClassNameWithRules(
 ): string {
   const parsed = parseGradeCode(className);
   if (!parsed) return className;
+  const matches = rules.some((r) => parsed.level >= r.minLevel && parsed.level <= r.maxLevel);
+  // Outside every rule, keep the original name rather than the bare code.
+  if (!matches) return className;
   const code = `${parsed.level}${parsed.section}`;
   return formatGradeCodeWithRules(code, rules);
 }
@@ -162,11 +165,9 @@ export function formatClassName(
   className: string,
   templateId: ClassNamingTemplateId
 ): string {
-  const parsed = parseGradeCode(className);
-  if (!parsed) return className;
-
-  const code = `${parsed.level}${parsed.section}`;
-  return formatGradeCode(code, templateId);
+  const template = CLASS_NAMING_TEMPLATES.find((t) => t.id === templateId);
+  if (!template) return className;
+  return formatClassNameWithRules(className, template.rules);
 }
 
 /**

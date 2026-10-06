@@ -180,9 +180,11 @@ Timetable module's spec.
 On any of: class created or switched to `self_contained`, `class_teacher_id`
 changed, `class_subject` added or removed:
 
-1. Close (`ends_on = today - 1`) every `source = self_contained` row for the
-   class whose `staff_id` is no longer the class teacher or whose subject slot
-   was removed.
+1. For every `source = self_contained` row for the class whose `staff_id` is
+   no longer the class teacher or whose subject slot was removed: if
+   `starts_on < today`, close it (`ends_on = today - 1`); if `starts_on =
+   today` it has no history yet, so soft delete it instead (closing it would
+   violate `ends_on >= starts_on`).
 2. Insert a `subject` row with `source = self_contained`, `starts_on = today`
    (or the class start), for every `class_subject` lacking an open row for the
    class teacher.
@@ -207,9 +209,18 @@ GET    /staff/{id}/assignments                     # ?on=YYYY-MM-DD ?include_his
 
 POST   /teaching-sets                              # { subject_id, academic_session_id, name, class_subject_ids[] }
 PATCH  /teaching-sets/{id}                         # add/remove members (same subject and session enforced)
-DELETE /teaching-sets/{id}                         # soft delete; member rows keep their own assignments afterwards
+DELETE /teaching-sets/{id}                         # soft delete; converts set assignments to per-member rows first (see below)
 GET    /staff/coverage                             # now model-aware (see rules)
 ```
+
+**Deleting a set** runs in one transaction: for each assignment with
+`teaching_set_id = id`, the row keeps its `class_subject_id`, drops its
+`teaching_set_id`, and one copy per other member class-subject is inserted
+with the same `staff_id`, `role`, `term_id`, `starts_on`, `ends_on`,
+`periods_per_week`, `source` and `notes`. Timetable periods stay on the
+original row (the lesson was taught once; the copies carry no periods). Only
+then is the set soft deleted. The unique partial index holds throughout
+because the copies have distinct `class_subject_id`s.
 
 **Validation:** `staff_id` must have `is_teacher = true`; the window must lie
 inside the class's session; `cover` requires `ends_on`; a `self_contained`

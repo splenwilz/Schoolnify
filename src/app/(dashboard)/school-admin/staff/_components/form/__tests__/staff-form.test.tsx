@@ -143,6 +143,13 @@ describe("StaffForm", () => {
     expect(screen.getByLabelText(/first name/i)).toHaveValue("Ada");
   });
 
+  it("marks a responsibility that has already ended", () => {
+    const existing = makeStaffDetail();
+    existing.contracts[0].roles.push({ ...existing.contracts[0].roles[0], id: "r3", designation: "Exam Officer", roleKind: "responsibility", isPrimary: false, startDate: "2022-09-01", endDate: "2024-08-31" });
+    setup({ mode: "edit", initial: existing });
+    expect(screen.getByText(/responsibility 1/i)).toHaveTextContent(/ended/i);
+  });
+
   it("pre-fills from an existing record in edit mode", () => {
     const existing = makeStaffDetail({ title: "Mrs", firstName: "Grace", lastName: "Hopper", email: "grace@school.test", department: "Science", ftePercent: 60, employeeNumber: "EMP-042", employer: "pta", contractType: "fixed_term", hireDate: "2015-01-01" });
     // Contract fields pre-fill from the contract itself, not the flat projection.
@@ -160,6 +167,7 @@ describe("StaffForm", () => {
     expect(screen.getByLabelText(/employer/i)).toHaveValue("pta");
     expect(screen.getByLabelText(/contract type/i)).toHaveValue("fixed_term");
     expect(screen.getByLabelText(/responsibility title/i)).toHaveValue("Head of Department");
+    expect(screen.getByText(/responsibility 1/i)).not.toHaveTextContent(/ended/i);
     expect(screen.getByLabelText(/employee number/i)).toHaveValue("EMP-042");
     expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument();
     expect(screen.getByText(/contact 1/i)).toHaveTextContent(/primary/i);

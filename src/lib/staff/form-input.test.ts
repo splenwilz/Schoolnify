@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeContract, makeEvent, makeStaffDetail } from "@/test/factories/staff";
+import { makeContract, makeEvent, makeRole, makeStaffDetail } from "@/test/factories/staff";
 import { staffDetailToFormInput } from "./form-input";
 
 const TODAY = "2026-10-04";
@@ -25,6 +25,17 @@ describe("staffDetailToFormInput", () => {
     expect(input.ftePercent).toBe(100);
     expect(input.hireDate).toBe("2020-01-01");
     expect(input.responsibilities).toEqual([]);
+  });
+  it("keeps ended and future responsibilities on the contract so an unrelated edit cannot drop them", () => {
+    const d = makeStaffDetail();
+    const c = d.contracts[0];
+    c.roles.push(
+      makeRole({ contractId: c.id, designation: "Exam Officer", roleKind: "responsibility", isPrimary: false, startDate: "2022-09-01", endDate: "2024-08-31" }),
+      makeRole({ contractId: c.id, designation: "Housemaster", roleKind: "responsibility", isPrimary: false, startDate: "2027-01-01", endDate: null })
+    );
+    const input = staffDetailToFormInput(d, TODAY);
+    expect(input.responsibilities.map((r) => r.designation)).toEqual(["Exam Officer", "Housemaster"]);
+    expect(input.responsibilities[0].endDate).toBe("2024-08-31");
   });
   it("does not carry a status: it is projected, never edited", () => {
     expect("employmentStatus" in staffDetailToFormInput(makeStaffDetail(), TODAY)).toBe(false);

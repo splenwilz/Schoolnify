@@ -7,13 +7,14 @@ import { ImportWizard } from "../import-wizard";
 const existing = [makeStaff({ id: "stf_001", email: "ben@school.test", employeeNumber: "EMP-001" })];
 
 const CSV = [
-  "First Name,Surname,E-mail,Mobile,Job Title,Category,Section,Start Date,Payer",
-  "Ada,Lovelace,ada@school.test,,Teacher,Academic,Mathematics,01/09/2026,PTA",
-  "Ben,Okafor,ben@school.test,,Bursar,Support,Administration,15/08/2020,",
+  "First Name,Surname,E-mail,Mobile,Job Title,Category,Section,Start Date,Payer,Manager Email",
+  "Ada,Lovelace,ada@school.test,,Teacher,Academic,Mathematics,01/09/2026,PTA,cy@school.test",
+  "Ben,Okafor,ben@school.test,,Bursar,Support,Administration,15/08/2020,,ada@school.test",
   "Bad,Row,not-an-email,,Teacher,Academic,Science,31/02/2026,",
-  "Cy,Ng,cy@school.test,,Teacher,Academic,Science,02/09/2026,,extra",
-  "Musa,Abdullahi,,+2348031200031,Driver,Support,Transport,01/04/2019,",
-  "Nobody,Reachable,,,Cleaner,Support,Facilities,01/04/2019,",
+  "Cy,Ng,cy@school.test,,Teacher,Academic,Science,02/09/2026,,",
+  "Musa,Abdullahi,,+2348031200031,Driver,Support,Transport,01/04/2019,,shifted@school.test",
+  "Nobody,Reachable,,,Cleaner,Support,Facilities,01/04/2019,,",
+  "Shifted,Row,shifted@school.test,,Teacher,Academic,Science,02/09/2026,,,overflow",
 ].join("\n");
 
 function setup() {
@@ -59,13 +60,15 @@ describe("ImportWizard", () => {
     expect(screen.getByRole("heading", { name: /review/i })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: /ready to create/i })).toHaveTextContent("3");
     expect(screen.getByRole("group", { name: /will update/i })).toHaveTextContent("1");
-    expect(screen.getByRole("group", { name: /errors/i })).toHaveTextContent("2");
+    expect(screen.getByRole("group", { name: /errors/i })).toHaveTextContent("3");
+    expect(screen.getByRole("row", { name: /more values than columns/i })).toHaveTextContent(/shifted@school.test/);
+    expect(screen.getByRole("row", { name: /musa/i })).toHaveTextContent(/no staff member with email "shifted@school.test"/i);
     const badRow = screen.getByRole("row", { name: /not-an-email/i });
     expect(within(badRow).getByText(/valid email/i)).toBeInTheDocument();
     expect(within(badRow).getByText(/DD\/MM\/YYYY/)).toBeInTheDocument();
     const unreachable = screen.getByRole("row", { name: /nobody/i });
     expect(within(unreachable).getByText(/email or a phone/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /download 2 rows with errors/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /download 3 rows with errors/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /import 4 rows/i }));
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
@@ -78,6 +81,11 @@ describe("ImportWizard", () => {
     const musa = payload.create.find((c: { person: { firstName: string } }) => c.person.firstName === "Musa")!;
     expect(musa.staff.email).toBeNull();
     expect(musa.person.phones[0].number).toBe("+2348031200031");
+    // Ada's manager (Cy) and Ben's manager (Ada) are both created in this file; Musa's points at the invalid row, so no link.
+    expect(payload.pendingManagerLinks).toEqual([
+      { target: "create", index: 0, reportsToEmail: "cy@school.test" },
+      { target: "update", index: 0, reportsToEmail: "ada@school.test" },
+    ]);
     expect(payload.update).toHaveLength(1);
     expect(payload.update[0]).toMatchObject({ id: "stf_001" });
     expect(payload.update[0].input.staff.email).toBe("ben@school.test");
@@ -91,14 +99,14 @@ describe("ImportWizard", () => {
     await user.selectOptions(screen.getByRole("combobox", { name: /map "section"/i }), "department");
     await user.click(screen.getByRole("button", { name: /validate/i }));
     await user.click(screen.getByRole("radio", { name: /create only/i }));
-    expect(screen.getByRole("group", { name: /errors/i })).toHaveTextContent("3");
+    expect(screen.getByRole("group", { name: /errors/i })).toHaveTextContent("4");
     expect(screen.getByRole("button", { name: /import 3 rows/i })).toBeInTheDocument();
   });
 
   it("shows parse notices on the map step and row warnings in the review", async () => {
     const { user } = setup();
     await pasteAndContinue(user);
-    expect(screen.getByText(/^row 4 has more values.*extra values were ignored/i)).toBeInTheDocument();
+    expect(screen.getByText(/^row 7 has more values.*will not import/i)).toBeInTheDocument();
     await user.selectOptions(screen.getByRole("combobox", { name: /map "section"/i }), "department");
     await user.click(screen.getByRole("button", { name: /validate/i }));
     expect(screen.getByRole("group", { name: /ready to create/i })).toHaveTextContent("3");

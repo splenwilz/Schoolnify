@@ -53,15 +53,22 @@ export function StaffFormPage({ mode, initial, today, country, managers, departm
   const redirect = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (redirect.current) clearTimeout(redirect.current); }, []);
 
+  // A live region mounted at the same moment as its content is not reliably
+  // announced, so move focus to the heading instead; screen readers read it.
+  const savedHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (savedName) savedHeading.current?.focus();
+  }, [savedName]);
+
   if (savedName) {
     return (
-      <div className="py-16 text-center" role="status">
+      <div className="py-16 text-center">
         <div className="flex justify-center mb-4">
           <div className="w-16 h-16 rounded-full bg-[var(--success)]/10 flex items-center justify-center">
             <CheckCircle2 className="w-8 h-8 text-[var(--success)]" aria-hidden="true" />
           </div>
         </div>
-        <h2 className="text-xl font-semibold text-[var(--foreground)] mb-2">{mode === "edit" ? "Changes Saved" : "Staff Member Added"}</h2>
+        <h2 ref={savedHeading} tabIndex={-1} className="text-xl font-semibold text-[var(--foreground)] mb-2 outline-none">{mode === "edit" ? "Changes Saved" : "Staff Member Added"}</h2>
         <p className="text-[14px] text-[var(--muted)]">
           {savedName} {mode === "edit" ? "has been updated" : "has been added"}. Redirecting...
         </p>

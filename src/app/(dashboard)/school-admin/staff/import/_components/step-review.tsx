@@ -106,7 +106,7 @@ export function StepReview({ result, fields, mode, committing, commitError, onMo
                       <ul className="space-y-0.5 text-[var(--error)]">
                         {r.errors.map((e, i) => (
                           <li key={i}>
-                            <span className="font-medium">{labelFor.get(e.field) ?? e.field}:</span> {e.message}
+                            <span className="font-medium">{e.field === "_row" ? "Row" : labelFor.get(e.field) ?? e.field}:</span> {e.message}
                           </li>
                         ))}
                       </ul>

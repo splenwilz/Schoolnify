@@ -125,6 +125,32 @@ describe("row rules and whole numbers", () => {
   });
 });
 
+describe("conflicting identifiers and parse errors", () => {
+  it("rejects a row whose unique fields resolve to different existing people", () => {
+    const ctx = {
+      dateFormat: "DD/MM/YYYY" as const,
+      existing: { email: new Set(["ben@x.test"]), employee_number: new Set(["EMP-9"]) },
+      existingIds: { email: new Map([["ben@x.test", "stf_1"]]), employee_number: new Map([["EMP-9", "stf_2"]]) },
+    };
+    const conflict = validateRows([{ ...base, Mail: "ben@x.test", No: "EMP-9" }], mapping, fields, ctx);
+    expect(conflict.rows[0].valid).toBe(false);
+    expect(conflict.rows[0].errors[0]).toMatchObject({ field: "employee_number", message: expect.stringMatching(/different person/i) });
+    const single = validateRows([{ ...base, Mail: "other@x.test", No: "EMP-9" }], mapping, fields, ctx);
+    expect(single.rows[0]).toMatchObject({ valid: true, match: "existing", matchedOn: "employee_number" });
+  });
+  it("fails rows the parser flagged, with the parser's message", () => {
+    const r = validateRows([base, { ...base, Mail: "b@x.test" }], mapping, fields, { dateFormat: "DD/MM/YYYY", rowErrors: new Map([[1, "Row has more values than columns"]]) });
+    expect(r.rows[0].valid).toBe(true);
+    expect(r.rows[1].errors).toEqual([{ field: "_row", message: "Row has more values than columns" }]);
+  });
+  it("does not let an invalid row satisfy a same-file reference", () => {
+    const withRef: ImportField[] = [...fields, { key: "reports_to_email", label: "Reports to", required: false, type: "email", aliases: [], mustExistIn: "email" }];
+    const ctx = { dateFormat: "DD/MM/YYYY" as const, existing: { email: new Set<string>() } };
+    const r = validateRows([{ ...base, Mail: "boss@x.test", Joined: "nope", Boss: "" }, { ...base, Mail: "new@x.test", Boss: "boss@x.test" }], { ...mapping, Boss: "reports_to_email" }, withRef, ctx);
+    expect(r.rows[1].warnings).toHaveLength(1);
+  });
+});
+
 describe("withCreateOnly", () => {
   it("turns existing matches into errors and recounts", () => {
     const ctx = { dateFormat: "DD/MM/YYYY" as const, existing: { email: new Set(["ben@x.test"]) } };

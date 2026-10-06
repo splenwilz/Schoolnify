@@ -54,7 +54,7 @@ export function StaffForm({ mode, initial, today, country, managers, departments
       <ContactSection form={form} />
       <ContractSection form={form} mode={mode} />
       <JobSection form={form} managers={managerOptions} departments={departments} />
-      <ResponsibilitiesSection form={form} />
+      <ResponsibilitiesSection form={form} today={today} />
       <AccessSection form={form} mode={mode} />
 
       {submitError && (

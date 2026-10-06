@@ -6,7 +6,7 @@ import { Award, ClipboardCheck, GraduationCap, ShieldCheck } from "lucide-react"
 import { cn } from "@/lib/utils";
 import type { CredentialStatus, EducationAward, ProfessionalRegistration, TrainingRecord, VettingCheck } from "@/types/staff";
 import { AWARD_LABEL, CREDENTIAL_STATUS_LABEL, REGISTRATION_BODY_LABEL, TRAINING_TYPE_LABEL, VETTING_CHECK_LABEL } from "@/types/staff";
-import { complianceSummary, credentialStatus, daysUntilExpiry, expiringItemsOf } from "@/lib/staff/credentials";
+import { complianceSummary, credentialStatus, daysUntilExpiry, expiringItemsOf, checkNeedsReview } from "@/lib/staff/credentials";
 import { formatDate } from "@/lib/staff/dates";
 
 interface CredentialsTabProps {
@@ -84,7 +84,7 @@ export function CredentialsTab({ registrations, checks, training, awards, today,
       .sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || (a.days ?? Infinity) - (b.days ?? Infinity));
 
   const regRows = byUrgency(registrations);
-  const checkRows = byUrgency(checks, (c) => c.outcome === "pending");
+  const checkRows = byUrgency(checks, checkNeedsReview);
   const trainingRows = byUrgency(training);
 
   return (

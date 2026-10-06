@@ -19,4 +19,12 @@ describe("AssignmentsTab", () => {
     expect(screen.getByText(/class teacher teaches all subjects/i)).toBeInTheDocument();
     expect(screen.getByText(/5 periods\/week/i)).toBeInTheDocument();
   });
+  it("keeps two classes with the same display name as separate groups", () => {
+    const rows: StaffAssignment[] = [
+      { ...base, id: "a1", classId: "c1", className: "JSS 2B", subjectId: "Biology", role: "subject", startsOn: "2026-09-07", endsOn: null },
+      { ...base, id: "a2", classId: "c9", className: "JSS 2B", academicSession: "2025/2026", subjectId: "Biology", role: "subject", startsOn: "2025-09-07", endsOn: "2026-07-31" },
+    ];
+    render(<AssignmentsTab staff={makeStaff({ id: "t1" })} assignments={rows} />);
+    expect(screen.getAllByText("JSS 2B")).toHaveLength(2);
+  });
 });

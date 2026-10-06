@@ -100,6 +100,8 @@ export interface EmploymentProjection {
   employmentStatus: EmploymentStatus;
   /** The last contract has ended, no exit was recorded and the events still say employed. */
   contractLapsed: boolean;
+  /** End of the contract current on the date, else of the last one that had started by then; null when open ended or none. */
+  contractEndDate: string | null;
   hireDate: string;
   exitDate: string | null;
   exitReason: ExitReason | null;
@@ -117,7 +119,8 @@ export const UNASSIGNED = "Unassigned";
 
 export function projectEmployment(contracts: readonly StaffContract[], events: readonly EmploymentEvent[], dateISO: string): EmploymentProjection {
   const current = currentContractOn(contracts, dateISO);
-  const latest = latestContract(contracts);
+  // A contract that has not started yet must not stand in for the gap before it.
+  const latest = latestContract(contracts.filter((c) => c.startDate <= dateISO)) ?? latestContract(contracts);
   const contract = current ?? latest;
   const role = contract ? primaryRoleOn(contract, dateISO) ?? contract.roles.find((r) => r.isPrimary) ?? null : null;
   const exit = exitOf(events);
@@ -128,6 +131,7 @@ export function projectEmployment(contracts: readonly StaffContract[], events: r
   return {
     employmentStatus: status,
     contractLapsed: current === null && latest !== null && latest.endDate !== null && latest.endDate < dateISO && status !== "inactive",
+    contractEndDate: contract?.endDate ?? null,
     hireDate: start,
     exitDate: exit?.date ?? null,
     exitReason: exit?.reason ?? null,

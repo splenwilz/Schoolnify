@@ -69,6 +69,10 @@ export interface ValidationContext {
   dateFormat: DateFormat;
   /** Field key -> set of values already in the system (lower-cased for email). */
   existing?: Record<string, ReadonlySet<string>>;
+  /** Field key -> value -> record id, for unique fields. Lets a row whose keys point at two different people be rejected. */
+  existingIds?: Record<string, ReadonlyMap<string, string>>;
+  /** Row index -> message from the parser (for example too many cells); the row fails with it. */
+  rowErrors?: ReadonlyMap<number, string>;
   /** Groups of field keys of which at least one must be non-blank per row; the error lands on the first key. */
   requireOneOf?: readonly (readonly string[])[];
   /** ISO 3166-1 alpha-2 of the school; lets national phone numbers be normalised. Without it only E.164 is accepted. */

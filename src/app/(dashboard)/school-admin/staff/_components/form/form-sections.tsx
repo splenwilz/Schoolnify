@@ -102,9 +102,10 @@ export function JobSection({ form, managers, departments }: { form: Form; manage
   );
 }
 
-export function ResponsibilitiesSection({ form }: { form: Form }) {
+export function ResponsibilitiesSection({ form, today }: { form: Form; today: string }) {
   const { register, control, formState: { errors } } = form;
   const roles = useFieldArray({ control, name: "responsibilities" });
+  const endDates = useWatch({ control, name: "responsibilities" }) ?? [];
   const headingId = useId();
   return (
     <section aria-labelledby={headingId} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
@@ -115,7 +116,7 @@ export function ResponsibilitiesSection({ form }: { form: Form }) {
       <div className="space-y-4">
         {roles.fields.length === 0 && <p className="text-[13px] text-[var(--muted)]">No additional responsibilities.</p>}
         {roles.fields.map((field, i) => (
-          <RepeatBlock key={field.id} title={`Responsibility ${i + 1}`} onRemove={() => roles.remove(i)} removeLabel={`Remove responsibility ${i + 1}`}>
+          <RepeatBlock key={field.id} title={`Responsibility ${i + 1}`} badge={endDates[i]?.endDate && endDates[i].endDate < today ? "Ended" : undefined} onRemove={() => roles.remove(i)} removeLabel={`Remove responsibility ${i + 1}`}>
             <TextField label="Responsibility title" required placeholder="Head of Department" error={errors.responsibilities?.[i]?.designation?.message} {...register(`responsibilities.${i}.designation` as const)} />
             <TextField label="Allowance code" placeholder="HOD" error={errors.responsibilities?.[i]?.allowanceCode?.message} {...register(`responsibilities.${i}.allowanceCode` as const)} />
             <TextField label="Responsibility start" required type="date" error={errors.responsibilities?.[i]?.startDate?.message} {...register(`responsibilities.${i}.startDate` as const)} />

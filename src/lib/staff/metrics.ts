@@ -6,10 +6,16 @@ import { addDays, addMonths, diffDays, isValidISODate } from "./dates";
  * reference date explicitly so results are reproducible and SSR-safe.
  */
 
-/** Hired on or before the date, not yet exited, not inactive without an exit date, and the contract has not lapsed. */
+/**
+ * Hired on or before the date, not yet exited, not inactive without an exit
+ * date, and the contract had not lapsed by that date. The lapse is judged by
+ * the contract end date so series over past dates keep the person while they
+ * were employed. FTE and the other projections are still "as of today"; the
+ * API will supply per-date snapshots when history matters.
+ */
 export function isOnBooksOn(s: Staff, dateISO: string): boolean {
   if (!isValidISODate(s.hireDate) || s.hireDate > dateISO) return false;
-  if (s.contractLapsed) return false;
+  if (s.contractLapsed && s.contractEndDate !== null && s.contractEndDate < dateISO) return false;
   if (s.exitDate !== null) return s.exitDate > dateISO;
   return s.employmentStatus !== "inactive";
 }
