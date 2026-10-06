@@ -76,13 +76,33 @@ function useStoredRaw(key: string): string | null {
   return useSyncExternalStore(subscribe, () => readRaw(key), serverSnapshot);
 }
 
-function parseJson<T>(raw: string | null, fallback: T): T {
-  if (raw === null) return fallback;
+function parseJson(raw: string | null): unknown {
+  if (raw === null) return undefined;
   try {
-    return JSON.parse(raw) as T;
+    return JSON.parse(raw) as unknown;
   } catch {
-    return fallback;
+    return undefined;
   }
+}
+
+const isLevelRule = (v: unknown): v is LevelRule =>
+  typeof v === "object" && v !== null &&
+  typeof (v as LevelRule).minLevel === "number" && typeof (v as LevelRule).maxLevel === "number" &&
+  typeof (v as LevelRule).prefix === "string" && typeof (v as LevelRule).levelOffset === "number";
+
+/** Stored settings are untrusted: anything malformed falls back to the defaults rather than reaching the formatters. An empty list is a valid saved state, not a fallback case. */
+export function resolveTemplateId(raw: string | null): ClassNamingTemplateId {
+  return CLASS_NAMING_TEMPLATES.some((t) => t.id === raw) ? (raw as ClassNamingTemplateId) : DEFAULT_TEMPLATE_ID;
+}
+
+export function parseStoredRules(raw: string | null): LevelRule[] {
+  const parsed = parseJson(raw);
+  return Array.isArray(parsed) && parsed.every(isLevelRule) ? parsed : getDefaultRules(DEFAULT_TEMPLATE_ID);
+}
+
+export function parseStoredSections(raw: string | null): string[] {
+  const parsed = parseJson(raw);
+  return Array.isArray(parsed) && parsed.every((x) => typeof x === "string" && x.trim() !== "") ? parsed : DEFAULT_SECTIONS;
 }
 
 interface SchoolConfigContextValue {
@@ -111,9 +131,9 @@ export function SchoolConfigProvider({ children }: { children: ReactNode }) {
   const rawRules = useStoredRaw(STORAGE_KEY_RULES);
   const rawSections = useStoredRaw(STORAGE_KEY_SECTIONS);
 
-  const templateId = (rawTemplate as ClassNamingTemplateId | null) ?? DEFAULT_TEMPLATE_ID;
-  const customRules = useMemo(() => parseJson<LevelRule[]>(rawRules, getDefaultRules(DEFAULT_TEMPLATE_ID)), [rawRules]);
-  const sections = useMemo(() => parseJson<string[]>(rawSections, DEFAULT_SECTIONS), [rawSections]);
+  const templateId = resolveTemplateId(rawTemplate);
+  const customRules = useMemo(() => parseStoredRules(rawRules), [rawRules]);
+  const sections = useMemo(() => parseStoredSections(rawSections), [rawSections]);
 
   const setTemplateId = useCallback((id: ClassNamingTemplateId) => {
     writeRaw(STORAGE_KEY_TEMPLATE, id);

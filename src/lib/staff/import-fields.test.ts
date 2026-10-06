@@ -50,6 +50,12 @@ describe("staffImportRowRules: the same rules as the form", () => {
     const r = validateRows([{ ...good, e: "ada@x.test", b: "ADA@x.test" }], m, STAFF_IMPORT_FIELDS, ctx).rows[0];
     expect(r.errors).toEqual([{ field: "reports_to_email", message: expect.stringMatching(/themselves/i) }]);
   });
+  it("rejects self-reporting through an employee-number match with a different or blank email", () => {
+    const m = { ...mapping, b: "reports_to_email", n: "employee_number" };
+    const resolver = { dateFormat: "DD/MM/YYYY" as const, country: "NG", existing: { email: new Set(["ada@x.test"]), employee_number: new Set(["EMP-1"]) }, existingIds: { email: new Map([["ada@x.test", "stf_1"]]), employee_number: new Map([["EMP-1", "stf_1"]]) }, rowRules: staffImportRowRules(TODAY, { staffIdByEmail: new Map([["ada@x.test", "stf_1"]]) }) };
+    const r = validateRows([{ ...good, e: "", n: "EMP-1", b: "ada@x.test" }], m, STAFF_IMPORT_FIELDS, resolver).rows[0];
+    expect(r.errors).toEqual([{ field: "reports_to_email", message: expect.stringMatching(/themselves/i) }]);
+  });
   it("requires a phone and relationship once an emergency contact is named", () => {
     expect(errorsOf({ ...good, ecn: "Grace" }).sort()).toEqual(["emergency_contact_phone", "emergency_contact_relationship"]);
     expect(errorsOf({ ...good, ecn: "Grace", ecp: "0803 000 0001", ecr: "Sister" })).toEqual([]);

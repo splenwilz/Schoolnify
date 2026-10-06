@@ -112,6 +112,44 @@ describe("ImportWizard", () => {
     expect(screen.getByRole("group", { name: /ready to create/i })).toHaveTextContent("3");
   });
 
+  it("links a report to a manager whose email changes in the same file, and warns instead in create-only mode", async () => {
+    const csv = [
+      "First Name,Surname,E-mail,Employee number,Job Title,Category,Section,Start Date,Manager Email",
+      "Ben,Okafor,ben.new@school.test,EMP-001,Bursar,Support,Administration,15/08/2020,",
+      "Ada,Lovelace,ada@school.test,,Teacher,Academic,Mathematics,01/09/2026,ben.new@school.test",
+    ].join("\n");
+    const { user, onCommit } = setup();
+    await user.click(screen.getByRole("tab", { name: /paste/i }));
+    await user.type(screen.getByRole("textbox", { name: /paste csv/i }), csv);
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await user.selectOptions(screen.getByRole("combobox", { name: /map "section"/i }), "department");
+    await user.click(screen.getByRole("button", { name: /validate/i }));
+    expect(within(screen.getByRole("row", { name: /ada/i })).queryByText(/no staff member/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: /create only/i }));
+    expect(within(screen.getByRole("row", { name: /ada/i })).getByText(/no staff member/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: /create and update/i }));
+    await user.click(screen.getByRole("button", { name: /import 2 rows/i }));
+    await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
+    const [payload] = onCommit.mock.calls[0];
+    expect(payload.update[0]).toMatchObject({ id: "stf_001" });
+    expect(payload.pendingManagerLinks).toEqual([{ target: "create", index: 0, reportsToEmail: "ben.new@school.test" }]);
+  });
+
+  it("locks the mode choice and the buttons while a commit is in flight", async () => {
+    let finish!: (r: { created: number; updated: number; failed: number }) => void;
+    const onCommit = vi.fn(() => new Promise<{ created: number; updated: number; failed: number }>((resolve) => { finish = resolve; }));
+    const user = userEvent.setup();
+    render(<ImportWizard existingStaff={existing} today="2026-10-04" country="NG" onCommit={onCommit} />);
+    await pasteAndContinue(user);
+    await user.selectOptions(screen.getByRole("combobox", { name: /map "section"/i }), "department");
+    await user.click(screen.getByRole("button", { name: /validate/i }));
+    await user.click(screen.getByRole("button", { name: /import 4 rows/i }));
+    expect(screen.getByRole("radio", { name: /create only/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /back/i })).toBeDisabled();
+    finish({ created: 3, updated: 1, failed: 0 });
+    expect(await screen.findByRole("heading", { name: /import complete/i })).toBeInTheDocument();
+  });
+
   it("moves between the upload and paste tabs with the arrow keys", async () => {
     const { user } = setup();
     screen.getByRole("tab", { name: /upload file/i }).focus();

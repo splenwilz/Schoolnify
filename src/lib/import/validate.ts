@@ -131,9 +131,12 @@ export function validateRows(
         errors.push({ field: group[0], message: `Give at least one of: ${labels}` });
       }
     }
+    if (ctx.createOnly && match === "existing" && errors.length === 0) {
+      errors.push({ field: matchedOn ?? "email", message: "Already exists; switch to create and update to change it" });
+    }
     // Cross-field rules only once the cells themselves are sound, so a rule
     // never repeats a field-level error.
-    if (errors.length === 0 && ctx.rowRules) errors.push(...ctx.rowRules(normalized));
+    if (errors.length === 0 && ctx.rowRules) errors.push(...ctx.rowRules(normalized, { matchedId }));
     return { index, valid: errors.length === 0, errors, warnings: [], normalized, match, matchedOn };
   });
 
@@ -164,15 +167,4 @@ export function validateRows(
     update: valid.filter((r) => r.match === "existing").length,
   };
   return { rows: results, validCount: summary.valid, invalidCount: summary.invalid, summary, unmappedRequired };
-}
-
-/** Create-only mode: rows matching an existing record become errors instead of updates. */
-export function withCreateOnly(result: BatchResult): BatchResult {
-  const rows = result.rows.map((r) => {
-    if (!r.valid || r.match !== "existing") return r;
-    return { ...r, valid: false, errors: [{ field: r.matchedOn ?? "email", message: "Already exists; switch to create and update to change it" }] };
-  });
-  const valid = rows.filter((r) => r.valid);
-  const summary = { total: rows.length, valid: valid.length, invalid: rows.length - valid.length, create: valid.length, update: 0 };
-  return { ...result, rows, validCount: summary.valid, invalidCount: summary.invalid, summary };
 }

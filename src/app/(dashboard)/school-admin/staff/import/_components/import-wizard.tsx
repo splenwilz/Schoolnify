@@ -6,7 +6,7 @@ import type { Staff } from "@/types/staff";
 import type { ParsedCsv } from "@/lib/import/csv";
 import { buildCsv } from "@/lib/import/csv";
 import { autoMap } from "@/lib/import/mapping";
-import { validateRows, withCreateOnly } from "@/lib/import/validate";
+import { validateRows } from "@/lib/import/validate";
 import type { BatchResult, ColumnMapping, DateFormat } from "@/lib/import/types";
 import { downloadTextFile } from "@/lib/import/download";
 import { STAFF_IMPORT_FIELDS, rowToStaffInput, staffImportRowRules, staffImportTemplate } from "@/lib/staff/import-fields";
@@ -51,7 +51,7 @@ export function ImportWizard({ existingStaff, today, country, onCommit }: Import
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [dateFormat, setDateFormat] = useState<DateFormat>("DD/MM/YYYY");
   const [mode, setMode] = useState<ImportMode>("upsert");
-  const [validated, setValidated] = useState<BatchResult | null>(null);
+  const [validatedAt, setValidatedAt] = useState<{ mapping: ColumnMapping; dateFormat: DateFormat } | null>(null);
   const [committing, setCommitting] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [done, setDone] = useState<CommitResult | null>(null);
@@ -72,7 +72,22 @@ export function ImportWizard({ existingStaff, today, country, onCommit }: Import
     };
   }, [existingStaff]);
 
-  const result = useMemo(() => (validated && mode === "create" ? withCreateOnly(validated) : validated), [validated, mode]);
+  // Validation is a pure function of the file, the mapping and the mode, so a
+  // mode switch re-runs it (create-only changes which rows exist for others
+  // to reference).
+  const result = useMemo<BatchResult | null>(() => {
+    if (!parsed || !validatedAt) return null;
+    const rowErrors = new Map(parsed.badRows.map((i) => [i, "More values than columns, so the values may be in the wrong columns; fix the quoting in the file"]));
+    return validateRows(parsed.rows, validatedAt.mapping, STAFF_IMPORT_FIELDS, {
+      dateFormat: validatedAt.dateFormat,
+      existing: existing.sets,
+      existingIds: existing.ids,
+      rowErrors,
+      country,
+      createOnly: mode === "create",
+      rowRules: staffImportRowRules(today, { staffIdByEmail: existing.staffIdByEmail }),
+    });
+  }, [parsed, validatedAt, mode, existing, country, today]);
 
   const handleParsed = (p: ParsedCsv) => {
     setParsed(p);
@@ -82,8 +97,7 @@ export function ImportWizard({ existingStaff, today, country, onCommit }: Import
 
   const handleValidate = () => {
     if (!parsed) return;
-    const rowErrors = new Map(parsed.badRows.map((i) => [i, "More values than columns, so the values may be in the wrong columns; fix the quoting in the file"]));
-    setValidated(validateRows(parsed.rows, mapping, STAFF_IMPORT_FIELDS, { dateFormat, existing: existing.sets, existingIds: existing.ids, rowErrors, country, rowRules: staffImportRowRules(today) }));
+    setValidatedAt({ mapping, dateFormat });
     setCommitError(null);
     setStep("review");
   };
@@ -100,7 +114,8 @@ export function ImportWizard({ existingStaff, today, country, onCommit }: Import
   const handleCommit = async () => {
     if (!result) return;
     const payload: ImportPayload = { create: [], update: [], pendingManagerLinks: [] };
-    const createdEmails = new Set(result.rows.filter((r) => r.valid && r.match === "new" && r.normalized.email).map((r) => r.normalized.email));
+    // Emails this batch introduces: new people, and existing people whose email changes. Neither has an id yet.
+    const batchEmails = new Set(result.rows.filter((r) => r.valid && r.normalized.email && !existing.staffIdByEmail.has(r.normalized.email)).map((r) => r.normalized.email));
     for (const r of result.rows) {
       if (!r.valid) continue;
       const input = rowToStaffInput(r.normalized, { staffIdByEmail: existing.staffIdByEmail });
@@ -109,7 +124,7 @@ export function ImportWizard({ existingStaff, today, country, onCommit }: Import
       if (isUpdate) payload.update.push({ id: match.id, input });
       else payload.create.push(input);
       const managerEmail = r.normalized.reports_to_email;
-      if (managerEmail && !existing.staffIdByEmail.has(managerEmail) && createdEmails.has(managerEmail)) {
+      if (managerEmail && !existing.staffIdByEmail.has(managerEmail) && batchEmails.has(managerEmail)) {
         const list = isUpdate ? payload.update : payload.create;
         payload.pendingManagerLinks.push({ target: isUpdate ? "update" : "create", index: list.length - 1, reportsToEmail: managerEmail });
       }
@@ -130,7 +145,7 @@ export function ImportWizard({ existingStaff, today, country, onCommit }: Import
     setStep("upload");
     setParsed(null);
     setMapping({});
-    setValidated(null);
+    setValidatedAt(null);
     setDone(null);
     setCommitError(null);
   };

@@ -54,7 +54,7 @@ export function StepReview({ result, fields, mode, committing, commitError, onMo
         <Count label="Errors" value={summary.invalid} tone="error" />
       </div>
 
-      <fieldset className="flex flex-wrap items-center gap-4">
+      <fieldset disabled={committing} className="flex flex-wrap items-center gap-4 disabled:opacity-60">
         <legend id={modeId} className="text-[12.5px] font-medium text-[var(--foreground)] mb-1.5">Existing people (matched on email, then employee number)</legend>
         {(
           [

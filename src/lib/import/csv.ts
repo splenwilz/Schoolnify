@@ -77,7 +77,13 @@ export function parseCsvText(text: string, options: ParseOptions = {}): ParsedCs
   return { headers, rows, errors, badRows: tooManyRows.map((n) => n - 1) };
 }
 
-/** Undo the formula guard escapeCsvCell adds, so our own template and error files round-trip. A plain leading apostrophe is kept. */
+/**
+ * Undo the formula guard escapeCsvCell adds, so our own template and error
+ * files round-trip. Only an apostrophe directly before a formula character is
+ * removed; any other leading apostrophe ('Deji) is kept. A genuine value such
+ * as "'@handle" is the one case that cannot be told apart from a guarded
+ * "@handle", an accepted trade-off against formula injection (OWASP).
+ */
 function unguard(v: string): string {
   return /^'[=+\-@\t\r]/.test(v) ? v.slice(1) : v;
 }

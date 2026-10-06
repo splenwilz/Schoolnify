@@ -77,6 +77,8 @@ export interface ValidationContext {
   requireOneOf?: readonly (readonly string[])[];
   /** ISO 3166-1 alpha-2 of the school; lets national phone numbers be normalised. Without it only E.164 is accepted. */
   country?: string;
-  /** Cross-field rules run once every cell has validated; their errors fail the row. */
-  rowRules?: (normalized: Record<string, string>) => RowError[];
+  /** Cross-field rules run once every cell has validated; their errors fail the row. `meta.matchedId` is the existing record the row updates, if any. */
+  rowRules?: (normalized: Record<string, string>, meta: { matchedId?: string }) => RowError[];
+  /** Create-only mode: a row that matches an existing record is an error, and references are judged after that. */
+  createOnly?: boolean;
 }

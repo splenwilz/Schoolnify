@@ -40,6 +40,11 @@ export const STAFF_IMPORT_FIELDS: readonly ImportField[] = [
   { key: "state_payroll_number", label: "State payroll number", required: false, type: "text", aliases: ["oracle number", "ippis", "ippis number", "subeb id", "tescom id"] },
 ];
 
+export interface StaffImportContext {
+  /** Lower-cased email -> staff id, for resolving reports_to_email. */
+  staffIdByEmail: ReadonlyMap<string, string>;
+}
+
 const RULE_FIELD: Record<RuleIssue["path"], string> = {
   phone: "phone",
   contractEndDate: "contract_end_date",
@@ -54,8 +59,8 @@ const RULE_FIELD: Record<RuleIssue["path"], string> = {
  * The cross-field rules the form applies (rules.ts), mapped onto column keys,
  * plus the emergency contact columns that must travel together.
  */
-export function staffImportRowRules(todayISO: string): (normalized: Record<string, string>) => RowError[] {
-  return (row) => {
+export function staffImportRowRules(todayISO: string, ctx: StaffImportContext = { staffIdByEmail: new Map() }): (normalized: Record<string, string>, meta: { matchedId?: string }) => RowError[] {
+  return (row, meta) => {
     const category = row.category === "support" ? "support" : "academic";
     const errors: RowError[] = staffRecordIssues(
       {
@@ -71,7 +76,9 @@ export function staffImportRowRules(todayISO: string): (normalized: Record<strin
       },
       todayISO
     ).map((i) => ({ field: RULE_FIELD[i.path], message: i.message }));
-    if (row.reports_to_email && row.email && row.reports_to_email === row.email) {
+    // Self-report by email, or by resolving the manager to the very record this row updates.
+    const managerId = row.reports_to_email ? ctx.staffIdByEmail.get(row.reports_to_email) : undefined;
+    if (row.reports_to_email && ((row.email && row.reports_to_email === row.email) || (managerId !== undefined && managerId === meta.matchedId))) {
       errors.push({ field: "reports_to_email", message: "A person cannot report to themselves" });
     }
     if (row.emergency_contact_name) {
@@ -80,11 +87,6 @@ export function staffImportRowRules(todayISO: string): (normalized: Record<strin
     }
     return errors;
   };
-}
-
-export interface StaffImportContext {
-  /** Lower-cased email -> staff id, for resolving reports_to_email. */
-  staffIdByEmail: ReadonlyMap<string, string>;
 }
 
 /** Normalised, validated row -> the create shape. Mirrors toStaffInput() for the form. */

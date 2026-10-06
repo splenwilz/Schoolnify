@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ImportField } from "./types";
-import { parseDate, validateRows, withCreateOnly } from "./validate";
+import { parseDate, validateRows } from "./validate";
 
 const fields: ImportField[] = [
   { key: "first_name", label: "First name", required: true, type: "text", aliases: [] },
@@ -151,19 +151,39 @@ describe("conflicting identifiers and parse errors", () => {
   });
 });
 
-describe("withCreateOnly", () => {
-  it("turns existing matches into errors and recounts", () => {
-    const ctx = { dateFormat: "DD/MM/YYYY" as const, existing: { email: new Set(["ben@x.test"]) } };
-    const r = validateRows([base, { ...base, Mail: "ben@x.test" }], mapping, fields, ctx);
-    expect(r.summary.update).toBe(1);
-    const c = withCreateOnly(r);
-    expect(c.summary).toEqual({ total: 2, valid: 1, invalid: 1, create: 1, update: 0 });
-    expect(c.rows[1].errors[0].message).toMatch(/already exists/i);
-    expect(r.rows[1].valid).toBe(true); // input untouched
+describe("create-only mode", () => {
+  it("turns existing matches into errors, blames the matching field and recounts", () => {
+    const ctx = { dateFormat: "DD/MM/YYYY" as const, existing: { email: new Set(["ben@x.test"]), employee_number: new Set(["EMP-9"]) } };
+    const upsert = validateRows([base, { ...base, Mail: "ben@x.test" }], mapping, fields, ctx);
+    expect(upsert.summary.update).toBe(1);
+    const c = validateRows([base, { ...base, Mail: "ben@x.test" }, { ...base, Mail: "c@x.test", No: "EMP-9" }], mapping, fields, { ...ctx, createOnly: true });
+    expect(c.summary).toEqual({ total: 3, valid: 1, invalid: 2, create: 1, update: 0 });
+    expect(c.rows[1].errors[0]).toMatchObject({ field: "email", message: expect.stringMatching(/already exists/i) });
+    expect(c.rows[2].errors[0].field).toBe("employee_number");
   });
-  it("blames the field that matched the existing record", () => {
+  it("recomputes same-file references, so a row rejected in create-only mode no longer satisfies one", () => {
+    const withRef: ImportField[] = [...fields, { key: "reports_to_email", label: "Reports to", required: false, type: "email", aliases: [], mustExistIn: "email" }];
+    // The manager row updates an existing person (matched by number) and gives them a new email.
     const ctx = { dateFormat: "DD/MM/YYYY" as const, existing: { email: new Set<string>(), employee_number: new Set(["EMP-9"]) } };
-    const c = withCreateOnly(validateRows([{ ...base, No: "EMP-9" }], mapping, fields, ctx));
-    expect(c.rows[0].errors[0].field).toBe("employee_number");
+    const rows = [{ ...base, Mail: "boss.new@x.test", No: "EMP-9", Boss: "" }, { ...base, Mail: "new@x.test", Boss: "boss.new@x.test" }];
+    expect(validateRows(rows, { ...mapping, Boss: "reports_to_email" }, withRef, ctx).rows[1].warnings).toEqual([]);
+    expect(validateRows(rows, { ...mapping, Boss: "reports_to_email" }, withRef, { ...ctx, createOnly: true }).rows[1].warnings).toHaveLength(1);
+  });
+});
+
+describe("row rules receive the match", () => {
+  it("passes the matched record id so a rule can compare against it", () => {
+    const seen: (string | undefined)[] = [];
+    const ctx = {
+      dateFormat: "DD/MM/YYYY" as const,
+      existing: { email: new Set(["ben@x.test"]) },
+      existingIds: { email: new Map([["ben@x.test", "stf_1"]]) },
+      rowRules: (_n: Record<string, string>, meta: { matchedId?: string }) => {
+        seen.push(meta.matchedId);
+        return [];
+      },
+    };
+    validateRows([base, { ...base, Mail: "ben@x.test" }], mapping, fields, ctx);
+    expect(seen).toEqual([undefined, "stf_1"]);
   });
 });
